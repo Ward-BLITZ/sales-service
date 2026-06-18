@@ -2221,6 +2221,14 @@ async function onLoggedIn(user){
   currentRole=user.user_metadata?.role||'user';
   if(user.email===ADMIN_EMAIL)currentRole='admin';
 
+  // Module toegang
+  if(currentRole==='admin'){
+    currentModules={sales:true,service:true};
+  } else {
+    const mods=user.user_metadata?.modules||{sales:true,service:false};
+    currentModules={sales:!!mods.sales,service:!!mods.service};
+  }
+
   // toon app
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('main-tabs').style.display='flex';
@@ -2233,6 +2241,9 @@ async function onLoggedIn(user){
   // naam van ingelogde gebruiker
   const userNaam=user.user_metadata?.naam||'';
   document.getElementById('current-user-name').textContent=userNaam||user.email;
+
+  // Module tabs instellen
+  setupModuleAccess();
 
   // Automatisch uitloggen om middernacht
   scheduleMidnightLogout();
