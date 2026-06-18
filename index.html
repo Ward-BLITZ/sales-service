@@ -2221,7 +2221,7 @@ async function onLoggedIn(user){
   currentRole=user.user_metadata?.role||'user';
   if(user.email===ADMIN_EMAIL)currentRole='admin';
 
-  // Module toegang
+  // Module toegang bepalen
   if(currentRole==='admin'){
     currentModules={sales:true,service:true};
   } else {
@@ -2242,11 +2242,11 @@ async function onLoggedIn(user){
   const userNaam=user.user_metadata?.naam||'';
   document.getElementById('current-user-name').textContent=userNaam||user.email;
 
-  // Module tabs instellen
-  setupModuleAccess();
-
   // Automatisch uitloggen om middernacht
   scheduleMidnightLogout();
+
+  // Module tabs instellen
+  setupModuleAccess();
 
   // start app — koppeling met verantwoordelijke gebeurt in startAppAfterLogin
   startAppAfterLogin(userNaam, user.email);
@@ -2442,18 +2442,10 @@ function startAppAfterLogin(userNaam='', userEmail=''){
   renderAll();renderResps();
   checkAutoMove();
 
-  // Module access instellen
-  const meta2=user.user_metadata||{};
-  if(currentRole==='admin'){
-    currentModules={sales:true,service:true};
-  }else{
-    const mods=meta2.modules||{sales:true,service:false};
-    currentModules={sales:!!mods.sales,service:!!mods.service};
-  }
-  setupModuleAccess();
   if(currentModules.sales){
-    if(currentRole==='admin'){showTab('dashboard');}else{showTab('lopend');}
-  }else if(currentModules.service){
+    if(currentRole==='admin') showTab('dashboard');
+    else showTab('lopend');
+  } else if(currentModules.service){
     switchModule('service');
   }
 }
@@ -2879,173 +2871,6 @@ function deleteTechByNaam(naam){editingTechId=naam;deleteTech();}
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1rem;border-top:1px solid var(--bd);padding-top:1rem">
       <button class="btn" onclick="closeCrmComplete()">Later aanvullen</button>
       <button class="btn primary" onclick="saveCrmComplete()"><i class="ti ti-check"></i> Opslaan in CRM</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- ════ SERVICE PANES ════ -->
-<!-- TICKETS -->
-<div id="pane-svc-tickets" class="page wide" style="display:none">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem;max-width:1400px;margin-left:auto;margin-right:auto">
-    <div><div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Tickets</div><div style="font-size:12px;color:var(--tx2)"><span class="live-dot" style="background:var(--blue)"></span>Live</div></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <div class="filter-bar" style="margin:0;padding:6px 12px"><span class="filter-label">Status:</span><div class="pills" id="pills-tk-status"></div></div>
-      <div class="filter-bar" style="margin:0;padding:6px 12px"><span class="filter-label">Prio:</span><div class="pills" id="pills-tk-prio"></div></div>
-      <button class="btn blue" onclick="openTicketModal(null)"><i class="ti ti-plus"></i> Nieuw ticket</button>
-    </div>
-  </div>
-  <div style="max-width:1400px;margin:0 auto">
-    <div class="stats-bar">
-      <div class="stat-card"><div class="stat-label">Open</div><div class="stat-value" id="tk-open">0</div></div>
-      <div class="stat-card"><div class="stat-label">In behandeling</div><div class="stat-value" id="tk-prog">0</div></div>
-      <div class="stat-card"><div class="stat-label">Wachten klant</div><div class="stat-value" id="tk-wait">0</div></div>
-      <div class="stat-card"><div class="stat-label">Gesloten vandaag</div><div class="stat-value" id="tk-done-today">0</div></div>
-    </div>
-    <input id="ticket-search" type="text" placeholder="Zoek ticket, klant, onderwerp..." oninput="renderTickets()" style="max-width:340px;margin-bottom:10px">
-    <div id="ticket-list"></div>
-  </div>
-</div>
-<!-- AGENDA -->
-<div id="pane-svc-agenda" class="page wide" style="display:none">
-  <div style="max-width:1400px;margin:0 auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
-      <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Agenda & interventies</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <div class="filter-bar" style="margin:0;padding:6px 12px"><span class="filter-label">Techniker:</span><div class="pills" id="pills-agenda-tech"></div></div>
-        <button class="btn sm" onclick="agendaPrev()"><i class="ti ti-chevron-left"></i></button>
-        <span id="agenda-week-lbl" style="font-size:13px;font-weight:600;white-space:nowrap"></span>
-        <button class="btn sm" onclick="agendaNext()"><i class="ti ti-chevron-right"></i></button>
-        <button class="btn blue" onclick="openInterventieModal(null,null,null)"><i class="ti ti-plus"></i> Interventie</button>
-      </div>
-    </div>
-    <div style="display:flex;gap:16px;align-items:flex-start">
-      <div style="flex:1;min-width:0;overflow-x:auto" id="agenda-main"></div>
-      <div class="cal-sidebar" style="position:sticky;top:110px">
-        <div class="cal-nav">
-          <button class="cal-nav-btn" onclick="agendaCalPrev()"><i class="ti ti-chevron-left"></i></button>
-          <span class="cal-month-lbl" id="agenda-cal-month"></span>
-          <button class="cal-nav-btn" onclick="agendaCalNext()"><i class="ti ti-chevron-right"></i></button>
-        </div>
-        <div class="cal-grid" id="agenda-cal-grid"></div>
-        <div class="cal-ev-section">
-          <div class="cal-ev-title"><i class="ti ti-calendar-event" style="margin-right:4px;color:var(--blue)"></i>Deze week</div>
-          <div id="agenda-week-list"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-<!-- TECHNIEKERS (admin) -->
-<div id="pane-svc-techniekers" class="page" style="display:none">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px">
-    <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Techniekers</div>
-    <button class="btn blue" onclick="openTechModal(null)"><i class="ti ti-plus"></i> Techniker toevoegen</button>
-  </div>
-  <div id="tech-list"></div>
-</div>
-
-<!-- TICKET MODAL -->
-<div class="modal-overlay" id="ticket-modal">
-  <div class="modal-box">
-    <div class="modal-header"><span class="modal-title" id="ticket-modal-title">Nieuw ticket</span><button class="modal-close" onclick="closeTicketModal()"><i class="ti ti-x"></i></button></div>
-    <div class="grid2">
-      <div class="field"><label>Onderwerp *</label><input id="tk-subject" placeholder="Beschrijf het probleem kort"></div>
-      <div class="field"><label>Klant</label><div class="ac-wrap"><input id="tk-klant" placeholder="Zoek klant..." autocomplete="off" oninput="onTkKlantInput(this.value)"><div class="ac-list" id="tk-klant-list"></div></div></div>
-    </div>
-    <div class="grid3">
-      <div class="field"><label>Prioriteit</label><select id="tk-prio"><option value="low">Laag</option><option value="med" selected>Normaal</option><option value="high">Hoog</option><option value="urg">Urgent</option></select></div>
-      <div class="field"><label>Status</label><select id="tk-status"><option value="open">Open</option><option value="prog">In behandeling</option><option value="wait">Wachten klant</option><option value="done">Opgelost</option><option value="closed">Gesloten</option></select></div>
-      <div class="field"><label>Toegewezen aan</label><select id="tk-assign"><option value="">— kies —</option></select></div>
-    </div>
-    <div class="field"><label>Omschrijving</label><textarea id="tk-desc" rows="3" placeholder="Geef meer details..."></textarea></div>
-    <div class="field"><label>E-mail klant</label><input id="tk-email" type="email" placeholder="klant@bedrijf.be"></div>
-    <div class="modal-footer">
-      <button class="btn danger" id="tk-del-btn" style="display:none;margin-right:auto" onclick="deleteTicket()"><i class="ti ti-trash"></i></button>
-      <button class="btn" onclick="closeTicketModal()">Annuleren</button>
-      <button class="btn blue" onclick="saveTicket()"><i class="ti ti-check"></i> Opslaan</button>
-    </div>
-  </div>
-</div>
-
-<!-- TICKET DETAIL PANEL -->
-<div class="ticket-detail" id="ticket-detail">
-  <div class="td-header">
-    <button class="btn sm" onclick="closeTicketDetail()"><i class="ti ti-x"></i></button>
-    <div style="flex:1;min-width:0"><div style="font-size:11px;color:var(--tx3)" id="td-id"></div><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="td-subject"></div></div>
-    <span id="td-prio-badge"></span><span id="td-status-badge"></span>
-    <button class="btn sm blue" onclick="openTicketModal(currentTicketId)"><i class="ti ti-edit"></i></button>
-  </div>
-  <div class="td-body">
-    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:1rem;font-size:12px;color:var(--tx2)">
-      <div><strong>Klant:</strong> <span id="td-klant"></span></div>
-      <div><strong>Toegewezen:</strong> <span id="td-assign"></span></div>
-      <div><strong>Aangemaakt:</strong> <span id="td-created"></span></div>
-    </div>
-    <div id="td-desc-box" style="background:var(--bg2);border-radius:var(--r);padding:12px;font-size:13px;line-height:1.6;margin-bottom:1.25rem;display:none"></div>
-    <div style="margin-bottom:1.25rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx2)"><i class="ti ti-calendar-event" style="margin-right:5px;color:var(--blue)"></i>Interventies</div>
-        <button class="btn xs blue" onclick="openInterventieModal(null,currentTicketId,null)"><i class="ti ti-plus"></i> Plannen</button>
-      </div>
-      <div id="td-interventies"></div>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx2)"><i class="ti ti-mail" style="margin-right:5px;color:var(--blue)"></i>E-mail communicatie</div>
-    </div>
-    <div class="email-thread" id="td-emails"></div>
-  </div>
-  <div class="td-footer">
-    <div class="compose-box">
-      <div class="compose-to-bar">Aan: <span id="compose-to" style="color:var(--tx);font-weight:500"></span></div>
-      <textarea id="compose-body" rows="3" placeholder="Typ je antwoord..."></textarea>
-      <div class="compose-actions">
-        <span style="font-size:11px;color:var(--tx3)">Van: <strong style="color:var(--tx2)">service@blitzpower.be</strong></span>
-        <button class="btn blue sm" onclick="sendEmail()"><i class="ti ti-send"></i> Versturen</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- INTERVENTIE MODAL -->
-<div class="modal-overlay" id="interventie-modal">
-  <div class="modal-box">
-    <div class="modal-header"><span class="modal-title" id="int-modal-title">Interventie plannen</span><button class="modal-close" onclick="closeInterventieModal()"><i class="ti ti-x"></i></button></div>
-    <div class="grid2">
-      <div class="field"><label>Datum *</label><input type="date" id="int-datum"></div>
-      <div class="field"><label>Starttijd</label><input type="time" id="int-start" value="08:00"></div>
-    </div>
-    <div class="grid2">
-      <div class="field"><label>Eindtijd</label><input type="time" id="int-end" value="10:00"></div>
-      <div class="field"><label>Techniker</label><select id="int-tech"><option value="">— kies —</option></select></div>
-    </div>
-    <div class="field"><label>Omschrijving</label><input id="int-desc" placeholder="Wat moet er gedaan worden?"></div>
-    <div class="field"><label>Gelinkt ticket</label><select id="int-ticket"><option value="">— geen ticket —</option></select></div>
-    <div class="field"><label>Klant / locatie</label><input id="int-locatie" placeholder="Adres of bedrijfsnaam"></div>
-    <div class="field"><label>Notities voor techniker</label><textarea id="int-notities" rows="2" placeholder="Extra info..."></textarea></div>
-    <div class="modal-footer">
-      <button class="btn danger" id="int-del-btn" style="display:none;margin-right:auto" onclick="deleteInterventie()"><i class="ti ti-trash"></i></button>
-      <button class="btn" onclick="closeInterventieModal()">Annuleren</button>
-      <button class="btn blue" onclick="saveInterventie()"><i class="ti ti-check"></i> Opslaan</button>
-    </div>
-  </div>
-</div>
-
-<!-- TECHNIKER MODAL -->
-<div class="modal-overlay" id="tech-modal">
-  <div class="modal-box" style="max-width:440px">
-    <div class="modal-header"><span class="modal-title" id="tech-modal-title">Techniker toevoegen</span><button class="modal-close" onclick="closeTechModal()"><i class="ti ti-x"></i></button></div>
-    <div class="field"><label>Naam *</label><input id="tech-naam" placeholder="Voornaam Achternaam"></div>
-    <div class="field"><label>Specialiteit</label><input id="tech-spec" placeholder="bv. EV-laadpunten, PV..."></div>
-    <div class="grid2">
-      <div class="field"><label>GSM</label><input id="tech-gsm" type="tel" placeholder="0499 123 456"></div>
-      <div class="field"><label>E-mail</label><input id="tech-email" type="email" placeholder="jan@blitzpower.be"></div>
-    </div>
-    <div class="field"><label>Kleur agenda</label><input id="tech-color" type="color" value="#3B82F6" style="width:60px;height:36px;padding:2px;border-radius:6px;cursor:pointer"></div>
-    <div class="modal-footer">
-      <button class="btn danger" id="tech-del-btn" style="display:none;margin-right:auto" onclick="deleteTech()"><i class="ti ti-trash"></i></button>
-      <button class="btn" onclick="closeTechModal()">Annuleren</button>
-      <button class="btn blue" onclick="saveTech()"><i class="ti ti-check"></i> Opslaan</button>
     </div>
   </div>
 </div>
