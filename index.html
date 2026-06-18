@@ -831,6 +831,9 @@ async function loadAll(){
     window._pendingUserLink=null;
     linkUserToResp(naam,email);
   }
+
+  // Zorg dat subtabs zichtbaar zijn na data laden
+  setupModuleAccess();
 }
 
 async function sbSaveProject(p){
@@ -2135,14 +2138,12 @@ let currentRole    = 'user';
 
 function initSupabaseClient(){
   if(supabaseClient)return true;
-  // Gebruik opgeslagen key (bv. service_role van admin) of anon key
-  const saved=JSON.parse(localStorage.getItem('blitz_sb')||'null');
-  const key=saved?.key||(SUPABASE_ANON_KEY!=='JOUW_ANON_KEY_HIER'?SUPABASE_ANON_KEY:null);
-  if(!key){return false;}
   try{
+    // Altijd verbinden met hardcoded URL en service key
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    sbUrl=SUPABASE_URL;sbKey=key;
-    localStorage.setItem('blitz_sb',JSON.stringify({url:SUPABASE_URL,key}));
+    sbUrl=SUPABASE_URL;
+    sbKey=SUPABASE_SERVICE_KEY;
+    localStorage.setItem('blitz_sb',JSON.stringify({url:SUPABASE_URL,key:SUPABASE_SERVICE_KEY}));
     return true;
   }catch(e){console.error('Supabase init fout:',e);return false;}
 }
@@ -2418,14 +2419,13 @@ async function removeUser(id,email){
 
 function startAppAfterLogin(userNaam='', userEmail=''){
   try{
-    const saved=JSON.parse(localStorage.getItem('blitz_sb')||'null');
-    if(saved&&saved.url&&saved.key){
-      document.getElementById('sb-url').value=saved.url;
-      document.getElementById('sb-key').value=saved.key;
-      // Na laden van data: koppel gebruiker aan verantwoordelijke
-      startSupabase(saved.url,saved.key).then?.(()=>{})||setTimeout(()=>linkUserToResp(userNaam,userEmail),2000);
-    }
-  }catch{}
+    // Altijd verbinden via hardcoded config
+    const url=SUPABASE_URL;
+    const key=SUPABASE_SERVICE_KEY;
+    document.getElementById('sb-url').value=url;
+    document.getElementById('sb-key').value=key;
+    startSupabase(url,key);
+  }catch(e){console.error('startSupabase fout:',e);}
   try{const f=localStorage.getItem('blitz_filter');if(f)activeFilter=f;}catch{}
   if(!sbUrl){
     try{const d=localStorage.getItem('blitz_projects');if(d)projects=JSON.parse(d);}catch{}
@@ -2512,10 +2512,18 @@ function switchModule(mod){
 function setupModuleAccess(){
   const hasBoth=currentModules.sales&&currentModules.service;
   document.getElementById('mod-tabs').style.display=hasBoth?'flex':'none';
-  // Admin sees service tabs
+  // Admin sees service techniker tab
   if(currentRole==='admin'){const el=document.getElementById('stab-svc-techniekers');if(el)el.style.display='inline-flex';}
-  if(currentModules.sales){activeModule='sales';document.getElementById('subtabs-sales').style.display='flex';}
-  else if(currentModules.service){activeModule='service';document.getElementById('subtabs-service').style.display='flex';}
+  // Always show the correct subtab row
+  if(currentModules.sales){
+    activeModule='sales';
+    document.getElementById('subtabs-sales').style.display='flex';
+    document.getElementById('subtabs-service').style.display='none';
+  } else if(currentModules.service){
+    activeModule='service';
+    document.getElementById('subtabs-sales').style.display='none';
+    document.getElementById('subtabs-service').style.display='flex';
+  }
 }
 
 // Override showTab to also update stab-* buttons
