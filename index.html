@@ -752,6 +752,7 @@ let didDrag          = false;
 let currentAttachments = []; // [{naam, type, data}]
 let dashWindow       = null;
 let prevSoldSet      = new Set();
+let currentModules   = {sales:true,service:false};
 let calYear  = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 
@@ -2484,7 +2485,6 @@ const TICKET_STATUS_LABELS={open:'Open',prog:'In behandeling',wait:'Wachten klan
 const TICKET_PRIO_LABELS={low:'Laag',med:'Normaal',high:'Hoog',urg:'Urgent'};
 
 let tickets=[],interventies=[],techniekers=[];
-let currentModules={sales:true,service:false};
 let activeModule='sales';
 let activeTicketStatus='all',activeTicketPrio='all';
 let currentTicketId=null,editingTicketId=null,editingIntId=null,editingTechId=null;
