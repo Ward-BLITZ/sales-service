@@ -466,10 +466,1295 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 <script>
 'use strict';
 // ── CONFIG ──
+const ADMIN_EMAIL         = 'sales@blitzpower.com';
+const SUPABASE_URL        = 'https://rhztaqutznafsgprnkvn.supabase.co';
+const SUPABASE_ANON_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoenRhcXV0em5hZnNncHJua3ZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2OTI2MjYsImV4cCI6MjA5NzI2ODYyNn0.n-ojVvnlm8x-g-O6WNoN8un67oR-yHMSlaJVuh_8caI';
+const SUPABASE_SERVICE_KEY= 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoenRhcXV0em5hZnNncHJua3ZuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTY5MjYyNiwiZXhwIjoyMDk3MjY4NjI2fQ.Il_MMzOFoUDqmjp5Fm8M120CGswwGtNDnOo-b1iooEs';
+const MONTHS    = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+const DAY_SHORT = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
+const TK_STATUS = {open:'Open',prog:'In behandeling',wait:'Wachten klant',done:'Opgelost',closed:'Gesloten'};
+const TK_PRIO   = {low:'Laag',med:'Normaal',high:'Hoog',urg:'Urgent'};
+
+// ── STATE ──
+let sb = null, sbAdmin = null;
+let currentUser = null, currentRole = 'user';
+let tickets = [], interventies = [], techniekers = [], klanten = [];
+let activeStatusFilter = 'all', activePrioFilter = 'all';
+let currentTicketId = null, editingTicketId = null;
+let editingIntId = null, editingTechId = null;
+let agendaOffset = 0;
+let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
+
+// ── HELPERS ──
+function today(){return new Date().toISOString().split('T')[0];}
+function fmtDT(iso){
+  if(!iso)return'';
+  try{return new Date(iso).toLocaleString('nl-BE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}
+  catch{return iso;}
+}
+function genId(){return 'T'+Math.floor(Date.now()/1000).toString().slice(-6)+Math.random().toString(36).slice(2,4).toUpperCase();}
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),3500);
+}
+function h(str){return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── SUPABASE ──
+function initSB(){
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  sbAdmin = supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+}
+function sbHdr(){
+  return{
+    'Content-Type':'application/json',
+    'Prefer':'return=representation',
+    'apikey':SUPABASE_SERVICE_KEY,
+    'Authorization':'Bearer '+SUPABASE_SERVICE_KEY
+  };
+}
+async function sbFetch(path, opts={}){
+  const res = await fetch(SUPABASE_URL+'/rest/v1/'+path, {...opts, headers:{...sbHdr(),...(opts.headers||{})}});
+  if(!res.ok){const t=await res.text();throw new Error(res.status+': '+t);}
+  const txt = await res.text();
+  return txt ? JSON.parse(txt) : null;
+}
+function setDbStatus(ok){
+  const el = document.getElementById('db-status');
+  el.innerHTML = ok
+    ? '<i class="ti ti-cloud" style="color:#00b882"></i>'
+    : '<i class="ti ti-cloud-off" style="color:#a32d2d"></i>';
+}
+
+// ── LOAD DATA ──
+async function loadAll(){
+  try{
+    const [tkRows, ivRows, klRows, techRow] = await Promise.all([
+      sbFetch('tickets?order=created_at.desc'),
+      sbFetch('interventies?order=created_at.asc'),
+      sbFetch('klanten?order=created_at.asc'),
+      sbFetch('settings?key=eq.techniekers')
+    ]);
+    tickets      = (tkRows||[]).map(r=>({...r.data, _dbId:r.id}));
+    interventies = (ivRows||[]).map(r=>({...r.data, _dbId:r.id}));
+    klanten      = (klRows||[]).map(r=>({id:r.id, ...r.data}));
+    techniekers  = (techRow&&techRow[0]) ? (techRow[0].data.list||[]) : [];
+    setDbStatus(true);
+  }catch(e){
+    console.error('loadAll fout:',e);
+    setDbStatus(false);
+  }
+}
+
+async function sbSaveTicket(tk){
+  const data={...tk}; const dbId=data._dbId; delete data._dbId;
+  data.updatedAt = new Date().toISOString();
+  if(dbId){
+    await sbFetch('tickets?id=eq.'+dbId,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({data})});
+    return dbId;
+  }
+  const r = await sbFetch('tickets',{method:'POST',body:JSON.stringify({data})});
+  return r&&r[0] ? r[0].id : null;
+}
+async function sbDelTicket(dbId){await sbFetch('tickets?id=eq.'+dbId,{method:'DELETE'});}
+
+async function sbSaveInt(iv){
+  const data={...iv}; const dbId=data._dbId; delete data._dbId;
+  if(dbId){
+    await sbFetch('interventies?id=eq.'+dbId,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({data})});
+    return dbId;
+  }
+  const r = await sbFetch('interventies',{method:'POST',body:JSON.stringify({data})});
+  return r&&r[0] ? r[0].id : null;
+}
+async function sbDelInt(dbId){await sbFetch('interventies?id=eq.'+dbId,{method:'DELETE'});}
+
+async function sbSaveTechniekers(){
+  await sbFetch('settings',{
+    method:'POST',
+    headers:{'Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify({key:'techniekers',data:{list:techniekers}})
+  });
+}
+
+// ── TABS ──
+function showTab(name){
+  ['tickets','agenda','techniekers','gebruikers'].forEach(function(id){
+    var p=document.getElementById('pane-'+id);
+    if(p) p.style.display='none';
+    var b=document.getElementById('stab-'+id);
+    if(b) b.classList.toggle('active', id===name);
+  });
+  var pane = document.getElementById('pane-'+name);
+  if(pane) pane.style.display='block';
+  closeDetail();
+  if(name==='tickets')  renderTickets();
+  if(name==='agenda')   {renderAgenda(); renderCal();}
+  if(name==='techniekers') renderTechList();
+  if(name==='gebruikers')  loadUsers();
+}
+
+// ── TICKETS ──
+function renderTickets(){
+  var q = (document.getElementById('tk-search')||{value:''}).value.toLowerCase();
+  var list = tickets.slice();
+  if(activeStatusFilter!=='all') list = list.filter(function(t){return t.status===activeStatusFilter;});
+  if(activePrioFilter!=='all')   list = list.filter(function(t){return t.prio===activePrioFilter;});
+  if(q) list = list.filter(function(t){
+    return (t.subject||'').toLowerCase().includes(q)
+      || (t.klant||'').toLowerCase().includes(q)
+      || (t.tkId||'').toLowerCase().includes(q);
+  });
+
+  document.getElementById('tk-open').textContent = tickets.filter(function(t){return t.status==='open';}).length;
+  document.getElementById('tk-prog').textContent = tickets.filter(function(t){return t.status==='prog';}).length;
+  document.getElementById('tk-wait').textContent = tickets.filter(function(t){return t.status==='wait';}).length;
+  document.getElementById('tk-done').textContent = tickets.filter(function(t){
+    return (t.status==='done'||t.status==='closed') && (t.updatedAt||'').startsWith(today());
+  }).length;
+
+  // Status pills
+  var sOpts = ['all','open','prog','wait','done','closed'];
+  document.getElementById('pills-status').innerHTML = sOpts.map(function(s){
+    var lbl = s==='all' ? 'Alles' : TK_STATUS[s];
+    var cls = 'pill' + (s==='all'?' all':'') + (activeStatusFilter===s?' active':'');
+    return '<button class="'+cls+'" onclick="setFilter(\'status\',\''+s+'\')">'+lbl+'</button>';
+  }).join('');
+
+  // Prio pills
+  var pOpts = ['all','urg','high','med','low'];
+  document.getElementById('pills-prio').innerHTML = pOpts.map(function(p){
+    var lbl = p==='all' ? 'Alles' : TK_PRIO[p];
+    var cls = 'pill' + (p==='all'?' all':'') + (activePrioFilter===p?' active':'');
+    return '<button class="'+cls+'" onclick="setFilter(\'prio\',\''+p+'\')">'+lbl+'</button>';
+  }).join('');
+
+  var el = document.getElementById('ticket-list');
+  if(!list.length){
+    el.innerHTML = '<div class="empty-state"><i class="ti ti-ticket"></i>Geen tickets gevonden.</div>';
+    return;
+  }
+
+  el.innerHTML = list.map(function(tk){
+    var pc = {low:'prio-low',med:'prio-med',high:'prio-high',urg:'prio-urg'}[tk.prio||'med'];
+    var sc = {open:'ts-open',prog:'ts-prog',wait:'ts-wait',done:'ts-done',closed:'ts-closed'}[tk.status||'open'];
+    var ivC = interventies.filter(function(iv){return iv.ticketId===tk.tkId;}).length;
+    var ivBadge = ivC ? '<i class="ti ti-calendar-event" style="font-size:10px;color:var(--blue)"></i> '+ivC+' interventie'+(ivC!==1?'s':'') : '';
+    var assignHtml = tk.assign
+      ? tk.assign
+      : '<span style="color:var(--tx3)">Niet toegewezen</span>';
+    return '<div class="ticket-row'+(tk.prio==='urg'?' urg':'')+'" onclick="openDetail(\''+h(tk.tkId)+'\')">'
+      +'<div class="tk-id">'+h(tk.tkId||'')+'</div>'
+      +'<div class="tk-subject">'
+        +'<div class="tk-subject-text">'+h(tk.subject||'(geen onderwerp)')+'</div>'
+        +'<div class="tk-meta">'+h(tk.klant||'')+' '+(tk.email?'· '+h(tk.email):'')+' '+(ivC?'· '+ivBadge:'')+'</div>'
+      +'</div>'
+      +'<div class="tk-badges"><span class="badge '+pc+'">'+TK_PRIO[tk.prio||'med']+'</span><span class="badge '+sc+'">'+TK_STATUS[tk.status||'open']+'</span></div>'
+      +'<div class="tk-assign">'+assignHtml+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function setFilter(type, val){
+  if(type==='status') activeStatusFilter=val;
+  else activePrioFilter=val;
+  renderTickets();
+}
+
+// ── TICKET MODAL ──
+function openTicketModal(tkId){
+  editingTicketId = tkId||null;
+  var tk = tkId ? tickets.find(function(t){return t.tkId===tkId;}) : null;
+  document.getElementById('tk-modal-title').textContent = tk ? 'Ticket bewerken' : 'Nieuw ticket';
+  var assigns = techniekers.map(function(t){return t.naam;});
+  document.getElementById('tk-assign').innerHTML = '<option value="">— kies —</option>'
+    + assigns.map(function(n){
+        return '<option value="'+h(n)+'"'+(tk&&tk.assign===n?' selected':'')+'>'+h(n)+'</option>';
+      }).join('');
+  if(tk){
+    document.getElementById('tk-subject').value = tk.subject||'';
+    document.getElementById('tk-klant').value   = tk.klant||'';
+    document.getElementById('tk-prio').value    = tk.prio||'med';
+    document.getElementById('tk-status').value  = tk.status||'open';
+    document.getElementById('tk-assign').value  = tk.assign||'';
+    document.getElementById('tk-desc').value    = tk.desc||'';
+    document.getElementById('tk-email').value   = tk.email||'';
+    document.getElementById('tk-del-btn').style.display = 'inline-flex';
+  } else {
+    ['tk-subject','tk-klant','tk-desc','tk-email'].forEach(function(id){document.getElementById(id).value='';});
+    document.getElementById('tk-prio').value   = 'med';
+    document.getElementById('tk-status').value = 'open';
+    document.getElementById('tk-assign').value = '';
+    document.getElementById('tk-del-btn').style.display = 'none';
+  }
+  document.getElementById('ticket-modal').classList.add('open');
+}
+function closeTicketModal(){
+  document.getElementById('ticket-modal').classList.remove('open');
+  editingTicketId = null;
+}
+
+async function saveTicket(){
+  var subject = document.getElementById('tk-subject').value.trim();
+  if(!subject){showToast('Onderwerp is verplicht.');return;}
+  var ex = editingTicketId ? tickets.find(function(t){return t.tkId===editingTicketId;}) : null;
+  var tk = {
+    tkId:      ex ? ex.tkId : genId(),
+    subject:   subject,
+    klant:     document.getElementById('tk-klant').value.trim(),
+    prio:      document.getElementById('tk-prio').value,
+    status:    document.getElementById('tk-status').value,
+    assign:    document.getElementById('tk-assign').value,
+    desc:      document.getElementById('tk-desc').value.trim(),
+    email:     document.getElementById('tk-email').value.trim(),
+    createdAt: ex ? ex.createdAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    emails:    ex ? (ex.emails||[]) : [],
+    _dbId:     ex ? (ex._dbId||null) : null
+  };
+  closeTicketModal();
+  if(ex){ tickets[tickets.indexOf(ex)] = tk; } else { tickets.unshift(tk); }
+  renderTickets();
+  showToast('Ticket opgeslagen.');
+  try{
+    var newId = await sbSaveTicket(tk);
+    if(!tk._dbId && newId) tk._dbId = newId;
+  }catch(e){showToast('DB fout: '+e.message);}
+  if(currentTicketId===tk.tkId) openDetail(tk.tkId);
+}
+
+async function deleteTicket(){
+  if(!confirm('Ticket verwijderen?')) return;
+  var tk = tickets.find(function(t){return t.tkId===editingTicketId;});
+  closeTicketModal(); closeDetail();
+  if(tk){
+    tickets.splice(tickets.indexOf(tk),1);
+    if(tk._dbId) sbDelTicket(tk._dbId).catch(function(){});
+  }
+  renderTickets();
+  showToast('Ticket verwijderd.');
+}
+
+// ── TICKET DETAIL ──
+function openDetail(tkId){
+  var tk = tickets.find(function(t){return t.tkId===tkId;});
+  if(!tk) return;
+  currentTicketId = tkId;
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('dp-id').textContent      = tk.tkId;
+  document.getElementById('dp-subject').textContent = tk.subject||'';
+  var pc = {low:'prio-low',med:'prio-med',high:'prio-high',urg:'prio-urg'}[tk.prio||'med'];
+  var sc = {open:'ts-open',prog:'ts-prog',wait:'ts-wait',done:'ts-done',closed:'ts-closed'}[tk.status||'open'];
+  document.getElementById('dp-prio').innerHTML   = '<span class="badge '+pc+'">'+TK_PRIO[tk.prio||'med']+'</span>';
+  document.getElementById('dp-status').innerHTML = '<span class="badge '+sc+'">'+TK_STATUS[tk.status||'open']+'</span>';
+  document.getElementById('dp-klant').textContent   = tk.klant||'—';
+  document.getElementById('dp-assign').textContent  = tk.assign||'Niet toegewezen';
+  document.getElementById('dp-created').textContent = fmtDT(tk.createdAt);
+  var db = document.getElementById('dp-desc-box');
+  if(tk.desc){ db.textContent=tk.desc; db.style.display='block'; } else { db.style.display='none'; }
+  document.getElementById('compose-to').textContent = tk.email||'(geen e-mail)';
+  document.getElementById('compose-body').value = '';
+  renderEmails(tk);
+  renderDpInterventies(tk);
+}
+function closeDetail(){
+  var p = document.getElementById('detail-panel');
+  if(p) p.classList.remove('open');
+  currentTicketId = null;
+}
+
+function renderEmails(tk){
+  var el = document.getElementById('dp-emails');
+  if(!el) return;
+  var emails = tk.emails||[];
+  if(!emails.length){
+    el.innerHTML='<div style="font-size:13px;color:var(--tx3);text-align:center;padding:1rem">Nog geen berichten.</div>';
+    return;
+  }
+  el.innerHTML = emails.map(function(em){
+    var from = em.dir==='out' ? 'Jij (service@blitzpower.be)' : (em.from||tk.klant||'Klant');
+    return '<div class="email-msg'+(em.dir==='out'?' out':'')+'"><div class="email-head"><span class="email-from">'+h(from)+'</span><span class="email-date">'+fmtDT(em.ts)+'</span></div><div class="email-body">'+h(em.body||'')+'</div></div>';
+  }).join('');
+}
+
+function renderDpInterventies(tk){
+  var el = document.getElementById('dp-interventies');
+  if(!el) return;
+  var ivs = interventies.filter(function(iv){return iv.ticketId===tk.tkId;});
+  if(!ivs.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--tx3)">Geen interventies gepland.</div>';
+    return;
+  }
+  el.innerHTML = ivs.map(function(iv){
+    var tech  = techniekers.find(function(t){return t.naam===iv.tech;});
+    var color = tech ? tech.color : '#3B82F6';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-radius:var(--r);margin-bottom:6px;cursor:pointer" onclick="openIntModal(\''+iv.id+'\',null,null)">'
+      +'<div style="width:10px;height:10px;border-radius:50%;background:'+color+';flex-shrink:0"></div>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:12px;font-weight:600">'+h(iv.datum||'')+' '+h(iv.start||'')+' – '+h(iv.end||'')+'</div>'
+        +'<div style="font-size:11px;color:var(--tx3)">'+h(iv.desc||'')+' '+(iv.tech?'· '+h(iv.tech):'')+'</div>'
+      +'</div>'
+      +'<i class="ti ti-edit" style="color:var(--tx3);font-size:13px"></i></div>';
+  }).join('');
+}
+
+async function sendEmail(){
+  var tk = tickets.find(function(t){return t.tkId===currentTicketId;});
+  if(!tk) return;
+  var body = document.getElementById('compose-body').value.trim();
+  if(!body){showToast('Typ een bericht.');return;}
+  tk.emails = tk.emails||[];
+  tk.emails.push({dir:'out',from:'service@blitzpower.be',to:tk.email,body:body,ts:new Date().toISOString()});
+  document.getElementById('compose-body').value='';
+  renderEmails(tk);
+  showToast('Bericht opgeslagen.');
+  try{await sbSaveTicket(tk);}catch(e){}
+}
+
+function onTkKlant(val){
+  var list = document.getElementById('tk-klant-list');
+  if(!val||val.length<2){list.classList.remove('open');return;}
+  var q = val.toLowerCase();
+  var matches = klanten.filter(function(k){return (k.naam||'').toLowerCase().includes(q);}).slice(0,6);
+  list.innerHTML = matches.map(function(k, i){
+    var idx = klanten.indexOf(k);
+    return '<div class="ac-item" onclick="selectTkKlant('+idx+')">'
+      +'<strong>'+h(k.naam)+'</strong>'
+      +(k.contact?'<div style="font-size:11px;color:var(--tx3)">'+h(k.contact)+'</div>':'')
+      +'</div>';
+  }).join('');
+  list.classList.toggle('open', !!matches.length);
+}
+function selectTkKlant(idx){
+  var k = klanten[idx]; if(!k) return;
+  document.getElementById('tk-klant').value = k.naam||'';
+  document.getElementById('tk-email').value = k.contactemail||k.email||'';
+  document.getElementById('tk-klant-list').classList.remove('open');
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.ac-wrap'))
+    document.querySelectorAll('.ac-list').forEach(function(l){l.classList.remove('open');});
+});
+
+// ── AGENDA ──
+function agendaPrev(){agendaOffset--;renderAgenda();}
+function agendaNext(){agendaOffset++;renderAgenda();}
+
+function getWeekDates(){
+  var now = new Date();
+  var dow = (now.getDay()+6)%7;
+  var mon = new Date(now);
+  mon.setDate(now.getDate()-dow+agendaOffset*7);
+  mon.setHours(0,0,0,0);
+  return Array.from({length:7}, function(_,i){
+    var d = new Date(mon);
+    d.setDate(mon.getDate()+i);
+    return d;
+  });
+}
+
+function renderAgenda(){
+  var wd = getWeekDates();
+  var todayStr = today();
+  var wStrs = wd.map(function(d){return d.toISOString().slice(0,10);});
+  var s = wd[0].toLocaleDateString('nl-BE',{day:'numeric',month:'short'});
+  var e = wd[6].toLocaleDateString('nl-BE',{day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('week-lbl').textContent = s+' – '+e;
+
+  var activeTechs = JSON.parse(sessionStorage.getItem('agenda_techs')||'[]');
+  var ivs = interventies.filter(function(iv){return wStrs.includes(iv.datum);});
+  if(activeTechs.length) ivs = ivs.filter(function(iv){return activeTechs.includes(iv.tech);});
+
+  // Tech pills
+  var tpEl = document.getElementById('pills-tech');
+  if(tpEl){
+    var cur = activeTechs;
+    var pillHtml = '<button class="pill all'+(cur.length===0?' active':'')+'" onclick="techFilter(null)"'
+      +(cur.length===0?' style="background:var(--dark);color:#fff;border-color:var(--dark)"':'')+'>Alles</button>';
+    pillHtml += techniekers.map(function(t){
+      var active = cur.includes(t.naam);
+      return '<button class="pill'+(active?' active':'')+'" style="'+(active?'background:'+t.color+';color:#fff;border-color:'+t.color:'')+'" onclick="techFilter(\''+h(t.naam)+'\')">'+h(t.naam)+'</button>';
+    }).join('');
+    tpEl.innerHTML = pillHtml;
+  }
+
+  var hours = Array.from({length:13}, function(_,i){return i+7;});
+
+  // Header
+  var hdr = '<div class="agenda-week-hdr"><div class="agenda-col-hdr" style="background:var(--bg)"></div>';
+  wd.forEach(function(d,i){
+    var isT = wStrs[i]===todayStr;
+    hdr += '<div class="agenda-col-hdr'+(isT?' today':'')+'">'+DAY_SHORT[i]+'<br><strong style="font-size:13px">'+d.getDate()+'</strong></div>';
+  });
+  hdr += '</div>';
+
+  // Body
+  var body = '<div class="agenda-body">';
+  hours.forEach(function(h_){
+    body += '<div class="agenda-time">'+String(h_).padStart(2,'0')+':00</div>';
+    wd.forEach(function(d, di){
+      var ds = wStrs[di];
+      var slotIvs = ivs.filter(function(iv){
+        if(iv.datum!==ds) return false;
+        return parseInt((iv.start||'00:00').split(':')[0])===h_;
+      });
+      var blocks = slotIvs.map(function(iv){
+        var tech  = techniekers.find(function(t){return t.naam===iv.tech;});
+        var color = (tech ? tech.color : '#3B82F6')+'cc';
+        var tk    = iv.ticketId ? tickets.find(function(t){return t.tkId===iv.ticketId;}) : null;
+        return '<div class="iv-block" style="background:'+color+'" onclick="event.stopPropagation();openIntModal(\''+iv.id+'\',null,null)" title="'+h(iv.desc||'')+' '+(iv.tech?'('+h(iv.tech)+')':'')+'">'+h(iv.desc||'')+(tk?' 🎫':'')+'</div>';
+      }).join('');
+      body += '<div class="agenda-cell" onclick="openIntModal(null,null,null,\''+ds+'\',\''+String(h_).padStart(2,'0')+':00\')">'+blocks+'</div>';
+    });
+  });
+  body += '</div>';
+  document.getElementById('agenda-main').innerHTML = hdr + body;
+
+  // Week list in sidebar
+  var wlEl = document.getElementById('cal-week-list');
+  if(wlEl){
+    var wivs = interventies
+      .filter(function(iv){return wStrs.includes(iv.datum);})
+      .sort(function(a,b){return ((a.datum||'')+(a.start||'')).localeCompare((b.datum||'')+(b.start||''));});
+    if(!wivs.length){
+      wlEl.innerHTML='<div style="font-size:12px;color:var(--tx3)">Geen interventies.</div>';
+    } else {
+      wlEl.innerHTML = wivs.map(function(iv){
+        var tech  = techniekers.find(function(t){return t.naam===iv.tech;});
+        var color = tech ? tech.color : '#3B82F6';
+        var tk    = iv.ticketId ? tickets.find(function(t){return t.tkId===iv.ticketId;}) : null;
+        return '<div class="cal-ev-item" onclick="openIntModal(\''+iv.id+'\',null,null)">'
+          +'<div class="cal-ev-dot" style="background:'+color+'"></div>'
+          +'<div class="cal-ev-info">'
+            +'<div class="cal-ev-name">'+h(iv.desc||'Interventie')+'</div>'
+            +'<div class="cal-ev-meta">'+h(iv.datum||'')+' '+h(iv.start||'')+'-'+h(iv.end||'')+(iv.tech?' · '+h(iv.tech):'')+(tk?' · '+tk.tkId:'')+'</div>'
+          +'</div></div>';
+      }).join('');
+    }
+  }
+}
+
+function techFilter(naam){
+  var cur = JSON.parse(sessionStorage.getItem('agenda_techs')||'[]');
+  if(!naam){ cur=[]; }
+  else if(cur.includes(naam)){ cur=cur.filter(function(n){return n!==naam;}); }
+  else { cur.push(naam); }
+  sessionStorage.setItem('agenda_techs', JSON.stringify(cur));
+  renderAgenda();
+}
+
+// ── MINI CALENDAR ──
+function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCal();}
+function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCal();}
+
+function renderCal(){
+  var lbl = document.getElementById('cal-month-lbl');
+  var gr  = document.getElementById('cal-grid');
+  if(!lbl||!gr) return;
+  lbl.textContent = MONTHS[calMonth]+' '+calYear;
+  var td = new Date(); td.setHours(0,0,0,0);
+  var startDow = (new Date(calYear,calMonth,1).getDay()+6)%7;
+  var dim = new Date(calYear,calMonth+1,0).getDate();
+  var ivDates = new Set(interventies.map(function(iv){return iv.datum;}));
+  var html = DAY_SHORT.map(function(d){return '<div class="cal-day-hdr">'+d+'</div>';}).join('');
+  for(var i=0;i<startDow;i++) html+='<div class="cal-day om"></div>';
+  for(var d=1;d<=dim;d++){
+    var ds = calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var isT  = new Date(calYear,calMonth,d).getTime()===td.getTime();
+    var hasIv = ivDates.has(ds);
+    html += '<div class="cal-day'+(isT?' td':'')+(hasIv?' has':'')+'" onclick="jumpToDate(\''+ds+'\')">'
+      +d+(hasIv?'<div class="cal-dots"><div class="cal-dot" style="background:var(--blue)"></div></div>':'')
+      +'</div>';
+  }
+  gr.innerHTML = html;
+}
+
+function jumpToDate(ds){
+  var d = new Date(ds); var t = new Date(); t.setHours(0,0,0,0);
+  agendaOffset = Math.floor(Math.round((d-t)/86400000)/7);
+  renderAgenda();
+}
+
+// ── INTERVENTIE MODAL ──
+function openIntModal(ivId, linkedTicket, _, preDate, preTime){
+  editingIntId = ivId||null;
+  var iv = ivId ? interventies.find(function(i){return i.id===ivId;}) : null;
+  document.getElementById('int-modal-title').textContent = iv ? 'Interventie bewerken' : 'Interventie plannen';
+  document.getElementById('int-tech').innerHTML = '<option value="">— kies —</option>'
+    + techniekers.map(function(t){
+        return '<option value="'+h(t.naam)+'"'+(iv&&iv.tech===t.naam?' selected':'')+'>'+h(t.naam)+'</option>';
+      }).join('');
+  document.getElementById('int-ticket').innerHTML = '<option value="">— geen ticket —</option>'
+    + tickets.filter(function(t){return t.status!=='closed';}).map(function(t){
+        var sel = (iv&&iv.ticketId===t.tkId)||(linkedTicket&&linkedTicket===t.tkId);
+        return '<option value="'+h(t.tkId)+'"'+(sel?' selected':'')+'>'+h(t.tkId)+': '+h(t.subject||'')+'</option>';
+      }).join('');
+  if(iv){
+    document.getElementById('int-datum').value    = iv.datum||'';
+    document.getElementById('int-start').value    = iv.start||'08:00';
+    document.getElementById('int-end').value      = iv.end||'10:00';
+    document.getElementById('int-desc').value     = iv.desc||'';
+    document.getElementById('int-locatie').value  = iv.locatie||'';
+    document.getElementById('int-notities').value = iv.notities||'';
+    document.getElementById('int-del-btn').style.display = 'inline-flex';
+  } else {
+    document.getElementById('int-datum').value    = preDate||today();
+    document.getElementById('int-start').value    = preTime||'08:00';
+    document.getElementById('int-end').value      = '10:00';
+    ['int-desc','int-locatie','int-notities'].forEach(function(id){document.getElementById(id).value='';});
+    document.getElementById('int-del-btn').style.display = 'none';
+    if(linkedTicket) document.getElementById('int-ticket').value = linkedTicket;
+  }
+  document.getElementById('int-modal').classList.add('open');
+}
+function closeIntModal(){document.getElementById('int-modal').classList.remove('open');editingIntId=null;}
+
+async function saveInt(){
+  var datum = document.getElementById('int-datum').value;
+  if(!datum){showToast('Datum is verplicht.');return;}
+  var ex = editingIntId ? interventies.find(function(i){return i.id===editingIntId;}) : null;
+  var iv = {
+    id:       ex ? ex.id : genId(),
+    datum:    datum,
+    start:    document.getElementById('int-start').value,
+    end:      document.getElementById('int-end').value,
+    tech:     document.getElementById('int-tech').value,
+    desc:     document.getElementById('int-desc').value.trim(),
+    ticketId: document.getElementById('int-ticket').value||null,
+    locatie:  document.getElementById('int-locatie').value.trim(),
+    notities: document.getElementById('int-notities').value.trim(),
+    createdAt:ex ? ex.createdAt : new Date().toISOString(),
+    _dbId:    ex ? (ex._dbId||null) : null
+  };
+  closeIntModal();
+  if(ex){ interventies[interventies.indexOf(ex)]=iv; } else { interventies.push(iv); }
+  renderAgenda(); renderCal();
+  showToast('Interventie opgeslagen.');
+  if(currentTicketId){
+    var tk = tickets.find(function(t){return t.tkId===currentTicketId;});
+    if(tk) renderDpInterventies(tk);
+  }
+  try{
+    var newId = await sbSaveInt(iv);
+    if(!iv._dbId&&newId) iv._dbId=newId;
+  }catch(e){showToast('DB fout: '+e.message);}
+}
+
+async function deleteInt(){
+  if(!confirm('Interventie verwijderen?')) return;
+  var iv = interventies.find(function(i){return i.id===editingIntId;});
+  closeIntModal();
+  if(iv){
+    interventies.splice(interventies.indexOf(iv),1);
+    if(iv._dbId) sbDelInt(iv._dbId).catch(function(){});
+  }
+  renderAgenda(); renderCal();
+  showToast('Interventie verwijderd.');
+}
+
+// ── TECHNIEKERS ──
+function renderTechList(){
+  var el = document.getElementById('tech-list'); if(!el) return;
+  if(!techniekers.length){
+    el.innerHTML='<div class="empty-state"><i class="ti ti-users"></i>Nog geen techniekers.</div>';
+    return;
+  }
+  el.innerHTML = techniekers.map(function(t){
+    return '<div class="list-item">'
+      +'<div style="width:16px;height:16px;border-radius:50%;background:'+(t.color||'#3B82F6')+';flex-shrink:0"></div>'
+      +'<div style="flex:1;min-width:0;margin-left:10px">'
+        +'<div style="font-size:13px;font-weight:600">'+h(t.naam)+'</div>'
+        +'<div style="font-size:11px;color:var(--tx3)">'+h(t.spec||'')+(t.gsm?' · '+h(t.gsm):'')+'</div>'
+      +'</div>'
+      +'<button class="btn sm" onclick="openTechModal(\''+h(t.naam)+'\')"><i class="ti ti-edit"></i></button>'
+      +'<button class="btn sm danger" onclick="delTechByNaam(\''+h(t.naam)+'\')"><i class="ti ti-trash"></i></button>'
+      +'</div>';
+  }).join('');
+}
+function openTechModal(naam){
+  var t = naam ? techniekers.find(function(x){return x.naam===naam;}) : null;
+  editingTechId = naam||null;
+  document.getElementById('tech-modal-title').textContent = t ? 'Techniker bewerken' : 'Techniker toevoegen';
+  document.getElementById('tech-naam').value  = t ? t.naam  : '';
+  document.getElementById('tech-spec').value  = t ? (t.spec||'')  : '';
+  document.getElementById('tech-gsm').value   = t ? (t.gsm||'')   : '';
+  document.getElementById('tech-email').value = t ? (t.email||'') : '';
+  document.getElementById('tech-color').value = t ? (t.color||'#3B82F6') : '#3B82F6';
+  document.getElementById('tech-del-btn').style.display = t ? 'inline-flex' : 'none';
+  document.getElementById('tech-modal').classList.add('open');
+}
+function closeTechModal(){document.getElementById('tech-modal').classList.remove('open');editingTechId=null;}
+
+async function saveTech(){
+  var naam = document.getElementById('tech-naam').value.trim();
+  if(!naam){showToast('Naam is verplicht.');return;}
+  var t = {
+    naam:  naam,
+    spec:  document.getElementById('tech-spec').value.trim(),
+    gsm:   document.getElementById('tech-gsm').value.trim(),
+    email: document.getElementById('tech-email').value.trim(),
+    color: document.getElementById('tech-color').value
+  };
+  if(editingTechId){
+    var i = techniekers.findIndex(function(x){return x.naam===editingTechId;});
+    if(i>-1) techniekers[i]=t; else techniekers.push(t);
+  } else {
+    techniekers.push(t);
+  }
+  closeTechModal(); renderTechList(); renderAgenda();
+  showToast('Techniker opgeslagen.');
+  try{await sbSaveTechniekers();}catch(e){showToast('DB fout: '+e.message);}
+}
+async function deleteTech(){
+  if(!confirm('Techniker verwijderen?')) return;
+  techniekers = techniekers.filter(function(t){return t.naam!==editingTechId;});
+  closeTechModal(); renderTechList();
+  showToast('Verwijderd.');
+  try{await sbSaveTechniekers();}catch(e){}
+}
+function delTechByNaam(naam){editingTechId=naam; deleteTech();}
+
+// ── GEBRUIKERS (admin) ──
+async function loadUsers(){
+  var el = document.getElementById('user-list'); if(!el) return;
+  try{
+    var result = await sbAdmin.auth.admin.listUsers();
+    var data = result.data; var error = result.error;
+    if(error||!data) throw error||new Error('geen data');
+    var users = data.users||[];
+    if(!users.length){
+      el.innerHTML='<div class="empty-state"><i class="ti ti-users"></i>Geen gebruikers.</div>';
+      return;
+    }
+    el.innerHTML = users.map(function(u){
+      var naam      = (u.user_metadata&&u.user_metadata.naam)||u.email;
+      var isAdmin   = u.email===ADMIN_EMAIL||(u.user_metadata&&u.user_metadata.role==='admin');
+      var confirmed = !!u.email_confirmed_at;
+      var badgeCls  = confirmed ? 'active' : 'pending';
+      var badgeTxt  = confirmed ? 'Actief' : 'Uitgenodigd';
+      var roleHtml;
+      if(u.email===ADMIN_EMAIL){
+        roleHtml = '<span class="user-badge admin">Hoofdadmin</span>';
+      } else {
+        roleHtml = '<select style="font-size:12px;padding:3px 8px;border-radius:6px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);cursor:pointer" onchange="changeRole(\''+u.id+'\',\''+h(naam)+'\',this.value)">'
+          +'<option value="user"'+(isAdmin?'':' selected')+'>Gebruiker</option>'
+          +'<option value="admin"'+(isAdmin?' selected':'')+'>Admin</option>'
+          +'</select>'
+          +'<button class="btn sm danger" onclick="removeUser(\''+u.id+'\',\''+h(u.email)+'\')"><i class="ti ti-trash"></i></button>';
+      }
+      return '<div class="user-item">'
+        +'<div class="user-avatar">'+naam.charAt(0).toUpperCase()+'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:13px;font-weight:600">'+h(naam)+'</div>'
+          +'<div style="font-size:11px;color:var(--tx3)">'+h(u.email)+'</div>'
+        +'</div>'
+        +'<span class="user-badge '+badgeCls+'" style="margin-right:6px">'+badgeTxt+'</span>'
+        +roleHtml
+        +'</div>';
+    }).join('');
+  }catch(e){
+    el.innerHTML='<div class="empty-state"><i class="ti ti-info-circle"></i><p style="font-size:13px;margin-top:8px">Gebruikersbeheer vereist de <strong>service_role key</strong>.</p></div>';
+  }
+}
+async function changeRole(userId, naam, role){
+  try{
+    await sbAdmin.auth.admin.updateUserById(userId,{user_metadata:{role:role}});
+    showToast(naam+' is nu '+(role==='admin'?'Admin':'Gebruiker')+'.');
+    loadUsers();
+  }catch(e){showToast('Fout: '+e.message);}
+}
+async function removeUser(id, email){
+  if(!confirm('Gebruiker '+email+' verwijderen?')) return;
+  try{await sbAdmin.auth.admin.deleteUser(id); loadUsers(); showToast('Verwijderd.');}
+  catch{showToast('Verwijderen mislukt.');}
+}
+function openInviteModal(){
+  ['inv-email','inv-naam'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('inv-role').value='user';
+  ['inv-err','inv-msg'].forEach(function(id){document.getElementById(id).classList.remove('show');});
+  document.getElementById('invite-modal').classList.add('open');
+}
+function closeInviteModal(){document.getElementById('invite-modal').classList.remove('open');}
+async function doInvite(){
+  var email = document.getElementById('inv-email').value.trim();
+  var naam  = document.getElementById('inv-naam').value.trim();
+  var role  = document.getElementById('inv-role').value;
+  var errEl = document.getElementById('inv-err');
+  var msgEl = document.getElementById('inv-msg');
+  errEl.classList.remove('show'); msgEl.classList.remove('show');
+  if(!email){errEl.textContent='E-mail is verplicht.';errEl.classList.add('show');return;}
+  try{
+    var result = await sbAdmin.auth.admin.inviteUserByEmail(email,{data:{naam:naam,role:role}});
+    if(result.error) throw result.error;
+    msgEl.textContent='Uitnodiging verstuurd naar '+email+'!';
+    msgEl.classList.add('show');
+    loadUsers();
+  }catch(e){
+    errEl.textContent='Fout: '+e.message;
+    errEl.classList.add('show');
+  }
+}
+
+// ── AUTH ──
+function showAuth(v){
+  ['login','setpass','forgot'].forEach(function(id){
+    document.getElementById('auth-'+id).style.display = id===v ? 'block' : 'none';
+  });
+}
+async function doLogin(){
+  var email = document.getElementById('login-email').value.trim();
+  var pw    = document.getElementById('login-pw').value;
+  var err   = document.getElementById('login-err');
+  err.classList.remove('show');
+  if(!email||!pw){err.textContent='Vul e-mail en wachtwoord in.';err.classList.add('show');return;}
+  try{
+    var result = await sb.auth.signInWithPassword({email:email, password:pw});
+    if(result.error){
+      err.textContent = result.error.message==='Invalid login credentials'
+        ? 'Verkeerd e-mail of wachtwoord.'
+        : result.error.message;
+      err.classList.add('show');
+      return;
+    }
+    await onLoggedIn(result.data.user);
+  }catch(e){
+    err.textContent='Verbindingsfout: '+e.message;
+    err.classList.add('show');
+  }
+}
+async function doLogout(){
+  await sb.auth.signOut();
+  currentUser=null; currentRole='user';
+  document.getElementById('auth-screen').style.display='flex';
+  document.getElementById('app-topbar').style.display='none';
+  document.getElementById('app-subtabs').style.display='none';
+  document.querySelectorAll('.page').forEach(function(p){p.style.display='none';});
+  closeDetail();
+  showAuth('login');
+}
+async function doForgot(){
+  var email = document.getElementById('forgot-email').value.trim();
+  var err   = document.getElementById('forgot-err');
+  var msg   = document.getElementById('forgot-msg');
+  err.classList.remove('show'); msg.classList.remove('show');
+  if(!email){err.textContent='Vul je e-mail in.';err.classList.add('show');return;}
+  var result = await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.href});
+  if(result.error){err.textContent='Fout: '+result.error.message;err.classList.add('show');return;}
+  msg.textContent='Reset-link verstuurd!';msg.classList.add('show');
+}
+async function doSetPass(){
+  var naam = document.getElementById('sp-naam').value.trim();
+  var pw1  = document.getElementById('sp-pw1').value;
+  var pw2  = document.getElementById('sp-pw2').value;
+  var err  = document.getElementById('setpass-err');
+  err.classList.remove('show');
+  if(pw1.length<8){err.textContent='Min. 8 tekens.';err.classList.add('show');return;}
+  if(pw1!==pw2){err.textContent='Wachtwoorden komen niet overeen.';err.classList.add('show');return;}
+  var result = await sb.auth.updateUser({password:pw1, data:{naam:naam}});
+  if(result.error){err.textContent='Fout: '+result.error.message;err.classList.add('show');return;}
+  await onLoggedIn(result.data.user);
+}
+
+async function onLoggedIn(user){
+  currentUser = user;
+  currentRole = (user.email===ADMIN_EMAIL || (user.user_metadata&&user.user_metadata.role==='admin'))
+    ? 'admin' : 'user';
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app-topbar').style.display='flex';
+  document.getElementById('app-subtabs').style.display='flex';
+  document.getElementById('user-name').textContent = (user.user_metadata&&user.user_metadata.naam)||user.email;
+  if(currentRole==='admin'){
+    document.getElementById('stab-techniekers').style.display='inline-flex';
+    document.getElementById('stab-gebruikers').style.display='inline-flex';
+  }
+  await loadAll();
+  showTab('tickets');
+  // Poll elke 30s
+  setInterval(async function(){await loadAll(); renderTickets();}, 30000);
+}
+
+// ── INIT ──
+(function init(){
+  initSB();
+  ['ticket-modal','int-modal','tech-modal','invite-modal'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.addEventListener('click', function(e){if(e.target===this) this.classList.remove('open');});
+  });
+  sb.auth.onAuthStateChange(function(event, session){
+    if(event==='INITIAL_SESSION' && session&&session.user && !currentUser){
+      onLoggedIn(session.user);
+    } else if(event==='SIGNED_IN' && session&&session.user && !currentUser){
+      onLoggedIn(session.user);
+    } else if(event==='SIGNED_OUT'){
+      doLogout();
+    } else if(event==='PASSWORD_RECOVERY'||event==='USER_UPDATED'){
+      showAuth('setpass');
+      document.getElementById('auth-screen').style.display='flex';
+    }
+  });
+})();
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#3B82F6;--dark:#1D252D;--green:#00DFA3;--red:#EF4444;
+  --bg:#fff;--bg2:#f2f4f3;--bg3:#e8eceb;
+  --tx:#1D252D;--tx2:#4a5760;--tx3:#8a9ba3;
+  --bd:rgba(29,37,45,.12);--bd2:rgba(29,37,45,.24);
+  --r:8px;--rl:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1D252D;--bg2:#252e38;--bg3:#161d24;
+  --tx:#fff;--tx2:#D9D9D6;--tx3:#5a6a74;
+  --bd:rgba(217,217,214,.12);--bd2:rgba(217,217,214,.28);
+}}
+body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--tx);min-height:100vh}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;background:var(--bg);border-bottom:1px solid var(--bd);padding:0 1.25rem;height:52px;position:sticky;top:0;z-index:100;gap:12px}
+.logo-mark{width:28px;height:28px;background:var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-mark svg{width:15px;height:15px;fill:#fff}
+.logo-title{font-family:'Poppins',sans-serif;font-size:14px;font-weight:700}
+.logo-sub{font-size:11px;color:var(--tx3);margin-left:2px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+/* ── SUBTABS ── */
+.subtabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--bd);padding:0 1.25rem}
+.stab{font-family:'Inter',sans-serif;font-size:12px;font-weight:500;color:var(--tx2);background:none;border:none;border-bottom:2px solid transparent;padding:9px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap}
+.stab:hover{color:var(--tx);background:var(--bg)}
+.stab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+
+/* ── BUTTONS ── */
+.btn{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;padding:7px 14px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--bg);color:var(--tx);cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
+.btn:hover{background:var(--bg2)}
+.btn.primary{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}
+.btn.primary:hover{background:#2563eb}
+.btn.danger{color:#a32d2d;border-color:rgba(163,45,45,.3)}
+.btn.danger:hover{background:#fcebeb}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.xs{padding:2px 8px;font-size:11px}
+
+/* ── FORMS ── */
+input,select,textarea{font-family:'Inter',sans-serif;font-size:13px;width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:var(--r);background:var(--bg);color:var(--tx);outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
+.field{margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
+
+/* ── LAYOUT ── */
+.page{padding:1.5rem;max-width:1300px;margin:0 auto}
+.empty-state{text-align:center;padding:4rem 1rem;color:var(--tx3);font-size:14px}
+.empty-state i{font-size:36px;display:block;margin-bottom:10px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--dark);color:#fff;padding:10px 18px;border-radius:var(--r);font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--blue);margin-right:5px;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── MODAL ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999}
+.overlay.open{display:flex;align-items:center;justify-content:center;padding:1rem}
+.modal{background:var(--bg);border-radius:var(--rl);width:100%;max-width:640px;max-height:90vh;overflow-y:auto;padding:1.75rem}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+.modal-title{font-family:'Poppins',sans-serif;font-size:16px;font-weight:600}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--tx2);padding:6px;border-radius:var(--r);font-size:18px;line-height:1}
+.modal-close:hover{background:var(--bg2)}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:1rem;border-top:1px solid var(--bd);padding-top:1rem}
+
+/* ── AUTH ── */
+.auth-screen{position:fixed;inset:0;background:var(--dark);display:flex;align-items:center;justify-content:center;z-index:9999}
+.auth-box{background:#fff;border-radius:var(--rl);padding:2.5rem;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:2rem;justify-content:center}
+.auth-logo-mark{width:38px;height:38px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.auth-logo-mark svg{width:20px;height:20px;fill:#fff}
+.auth-title{font-family:'Poppins',sans-serif;font-size:20px;font-weight:700;color:#1D252D}
+.auth-sub{font-size:13px;color:#4a5760;text-align:center;margin-bottom:1.5rem}
+.auth-field{margin-bottom:14px}
+.auth-field label{font-size:12px;color:#4a5760;margin-bottom:4px;display:block;font-weight:500}
+.auth-field input{font-family:'Inter',sans-serif;font-size:14px;width:100%;padding:10px 12px;border:1px solid rgba(29,37,45,.2);border-radius:8px;outline:none;color:#1D252D;transition:border-color .15s}
+.auth-field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.auth-btn{width:100%;padding:11px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;transition:background .15s}
+.auth-btn:hover{background:#2563eb}
+.auth-btn.sec{background:transparent;color:#4a5760;border:1px solid rgba(29,37,45,.2);font-family:'Inter',sans-serif;font-weight:500;margin-top:8px}
+.auth-btn.sec:hover{background:#f2f4f3}
+.auth-err{font-size:12px;color:#a32d2d;background:#fcebeb;padding:8px 12px;border-radius:6px;margin-bottom:12px;display:none}
+.auth-err.show{display:block}
+.auth-msg{font-size:12px;color:#085041;background:#E1F5EE;padding:8px 12px;border-radius:6px;margin-bottom:12px;display:none}
+.auth-msg.show{display:block}
+
+/* ── STATS ── */
+.stats-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1.25rem}
+.stat-card{background:var(--bg);border:1px solid var(--bd);border-radius:var(--r);padding:10px 18px;min-width:110px}
+.stat-label{font-size:11px;color:var(--tx2);margin-bottom:3px}
+.stat-value{font-family:'Poppins',sans-serif;font-size:22px;font-weight:700;color:var(--tx)}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.prio-low{background:#E1F5EE;color:#085041}
+.prio-med{background:#FEF3C7;color:#92400E}
+.prio-high{background:#FEE2E2;color:#991B1B}
+.prio-urg{background:#7C3AED;color:#fff}
+.ts-open{background:#DBEAFE;color:#1E40AF}
+.ts-prog{background:#FEF3C7;color:#92400E}
+.ts-wait{background:#F3E8FF;color:#6B21A8}
+.ts-done{background:#DCFCE7;color:#166534}
+.ts-closed{background:#F1F5F9;color:#64748B}
+
+/* ── PILLS ── */
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:12px;font-weight:500;padding:4px 12px;border:1px solid var(--bd);border-radius:20px;background:var(--bg2);color:var(--tx2);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif}
+.pill:hover{border-color:var(--blue);color:var(--tx)}
+.pill.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}
+.pill.all.active{background:var(--dark);color:#fff;border-color:var(--dark)}
+
+/* ── FILTER BAR ── */
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 14px;background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:1rem}
+.filter-lbl{font-size:12px;color:var(--tx2);white-space:nowrap}
+
+/* ── TICKET LIST ── */
+.ticket-row{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:8px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.ticket-row:hover{border-color:var(--blue);box-shadow:0 2px 8px rgba(59,130,246,.1)}
+.ticket-row.urg{border-left:3px solid var(--red)}
+.tk-id{font-size:11px;font-weight:700;color:var(--tx3);width:70px;flex-shrink:0}
+.tk-subject{flex:1;min-width:0}
+.tk-subject-text{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk-meta{font-size:11px;color:var(--tx3);margin-top:2px}
+.tk-badges{display:flex;gap:5px;flex-shrink:0}
+.tk-assign{font-size:11px;color:var(--tx2);white-space:nowrap;width:120px;text-align:right;flex-shrink:0}
+
+/* ── TICKET DETAIL PANEL ── */
+.detail-panel{display:none;position:fixed;right:0;top:0;bottom:0;width:680px;background:var(--bg);border-left:1px solid var(--bd);z-index:500;box-shadow:-4px 0 24px rgba(0,0,0,.1);flex-direction:column}
+.detail-panel.open{display:flex}
+.dp-header{padding:1rem 1.25rem;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--bg2)}
+.dp-body{flex:1;overflow-y:auto;padding:1.25rem}
+.dp-footer{padding:1rem 1.25rem;border-top:1px solid var(--bd);background:var(--bg);flex-shrink:0}
+
+/* ── EMAIL THREAD ── */
+.email-thread{display:flex;flex-direction:column;gap:10px;margin-bottom:1rem}
+.email-msg{border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden}
+.email-head{display:flex;justify-content:space-between;padding:8px 14px;background:var(--bg2);font-size:12px}
+.email-from{font-weight:600}
+.email-date{color:var(--tx3)}
+.email-body{padding:10px 14px;font-size:13px;line-height:1.6;white-space:pre-wrap;color:var(--tx)}
+.email-msg.out .email-head{background:rgba(59,130,246,.07)}
+.email-msg.out .email-from{color:var(--blue)}
+.compose-box{border:1px solid var(--bd2);border-radius:var(--rl);overflow:hidden}
+.compose-to{padding:7px 14px;border-bottom:1px solid var(--bd);font-size:12px;color:var(--tx3)}
+.compose-box textarea{border:none;border-radius:0;resize:none;padding:10px 14px;font-size:13px}
+.compose-box textarea:focus{box-shadow:none;border:none}
+.compose-actions{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg2)}
+
+/* ── AGENDA ── */
+.agenda-week-hdr{display:grid;grid-template-columns:56px repeat(7,1fr);border:1px solid var(--bd);border-radius:var(--rl) var(--rl) 0 0;overflow:hidden;min-width:600px}
+.agenda-col-hdr{text-align:center;padding:8px 4px;background:var(--bg2);border-right:1px solid var(--bd);font-size:11px;font-weight:600;color:var(--tx2)}
+.agenda-col-hdr.today{background:rgba(59,130,246,.1);color:var(--blue)}
+.agenda-col-hdr:last-child{border-right:none}
+.agenda-body{display:grid;grid-template-columns:56px repeat(7,1fr);border:1px solid var(--bd);border-top:none;border-radius:0 0 var(--rl) var(--rl);overflow:hidden;min-width:600px}
+.agenda-time{font-size:10px;color:var(--tx3);padding:3px 5px;text-align:right;border-right:1px solid var(--bd);background:var(--bg);height:44px;display:flex;align-items:flex-start;padding-top:3px}
+.agenda-cell{height:44px;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);position:relative;cursor:pointer}
+.agenda-cell:hover{background:rgba(59,130,246,.04)}
+.agenda-cell:last-child{border-right:none}
+.iv-block{position:absolute;left:2px;right:2px;top:2px;bottom:2px;border-radius:5px;padding:2px 5px;font-size:10px;font-weight:600;cursor:pointer;overflow:hidden;line-height:1.3;color:#fff}
+.iv-block:hover{filter:brightness(.9)}
+
+/* ── CALENDAR SIDEBAR ── */
+.cal-sidebar{width:280px;flex-shrink:0;background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:14px;position:sticky;top:110px;max-height:calc(100vh - 130px);overflow-y:auto}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-month{font-family:'Poppins',sans-serif;font-size:13px;font-weight:700}
+.cal-nav-btn{background:none;border:none;cursor:pointer;color:var(--tx2);padding:4px 8px;border-radius:var(--r);font-size:16px}
+.cal-nav-btn:hover{background:var(--bg2)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-day-hdr{text-align:center;font-size:10px;font-weight:600;color:var(--tx3);padding:2px 0;text-transform:uppercase}
+.cal-day{text-align:center;font-size:12px;padding:4px 2px;border-radius:6px;min-height:26px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.cal-day.om{color:var(--tx3)}.cal-day.td{background:var(--bg3);font-weight:700}
+.cal-day.has{cursor:pointer}.cal-day.has:hover{background:var(--bg2)}
+.cal-dots{display:flex;gap:2px;flex-wrap:wrap;justify-content:center}
+.cal-dot{width:5px;height:5px;border-radius:50%}
+.cal-ev-section{margin-top:12px;border-top:1px solid var(--bd);padding-top:10px}
+.cal-ev-title{font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.cal-ev-item{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);cursor:pointer}
+.cal-ev-item:last-child{border-bottom:none}
+.cal-ev-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.cal-ev-info{flex:1;min-width:0}
+.cal-ev-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-ev-meta{font-size:10px;color:var(--tx3)}
+
+/* ── RESP/TECH LIST ── */
+.list-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px;background:var(--bg)}
+.user-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px;background:var(--bg)}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;font-family:'Poppins',sans-serif;font-weight:700;font-size:13px;color:var(--blue);flex-shrink:0}
+.user-badge{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600}
+.user-badge.admin{background:#EEEDFE;color:#3C3489}
+.user-badge.active{background:#E1F5EE;color:#085041}
+.user-badge.pending{background:#FAC775;color:#633806}
+.ac-wrap{position:relative}
+.ac-list{position:absolute;top:100%;left:0;right:0;background:var(--bg);border:1px solid var(--bd2);border-top:none;border-radius:0 0 var(--r) var(--r);z-index:600;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1);display:none}
+.ac-list.open{display:block}
+.ac-item{padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd)}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover{background:rgba(59,130,246,.06)}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCHERM -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-mark"><svg viewBox="0 0 18 18"><path d="M9 1L2 10h6l-1 7 9-10h-6z"/></svg></div>
+      <span class="auth-title">Blitz Power Service</span>
+    </div>
+    <div id="auth-login">
+      <div class="auth-sub">Meld je aan om verder te gaan</div>
+      <div class="auth-err" id="login-err"></div>
+      <div class="auth-field"><label>E-mailadres</label><input id="login-email" type="email" placeholder="jan@blitzpower.be" autocomplete="email"></div>
+      <div class="auth-field"><label>Wachtwoord</label><input id="login-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="auth-btn" onclick="doLogin()">Aanmelden</button>
+      <button class="auth-btn sec" onclick="showAuth('forgot')">Wachtwoord vergeten?</button>
+    </div>
+    <div id="auth-setpass" style="display:none">
+      <div class="auth-sub">Stel je wachtwoord in</div>
+      <div class="auth-err" id="setpass-err"></div>
+      <div class="auth-field"><label>Naam</label><input id="sp-naam" placeholder="Voornaam Achternaam"></div>
+      <div class="auth-field"><label>Nieuw wachtwoord</label><input id="sp-pw1" type="password" placeholder="Min. 8 tekens"></div>
+      <div class="auth-field"><label>Herhaal wachtwoord</label><input id="sp-pw2" type="password" onkeydown="if(event.key==='Enter')doSetPass()"></div>
+      <button class="auth-btn" onclick="doSetPass()">Wachtwoord instellen</button>
+    </div>
+    <div id="auth-forgot" style="display:none">
+      <div class="auth-sub">Reset-link ontvangen</div>
+      <div class="auth-err" id="forgot-err"></div>
+      <div class="auth-msg" id="forgot-msg"></div>
+      <div class="auth-field"><label>E-mailadres</label><input id="forgot-email" type="email" placeholder="jan@blitzpower.be"></div>
+      <button class="auth-btn" onclick="doForgot()">Reset-link versturen</button>
+      <button class="auth-btn sec" onclick="showAuth('login')">← Terug</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar" id="app-topbar" style="display:none">
+  <div class="logo-mark"><svg viewBox="0 0 18 18"><path d="M9 1L2 10h6l-1 7 9-10h-6z"/></svg></div>
+  <span class="logo-title">Blitz Power</span>
+  <span class="logo-sub">Service</span>
+  <div class="topbar-right">
+    <span id="db-status" style="font-size:11px;color:var(--tx3)"><i class="ti ti-cloud-off"></i></span>
+    <span id="user-name" style="font-size:11px;color:var(--tx2)"></span>
+    <button class="btn sm" onclick="doLogout()"><i class="ti ti-logout"></i></button>
+  </div>
+</div>
+
+<!-- SUBTABS -->
+<div class="subtabs" id="app-subtabs" style="display:none">
+  <button class="stab active" id="stab-tickets" onclick="showTab('tickets')"><i class="ti ti-ticket"></i> Tickets</button>
+  <button class="stab" id="stab-agenda" onclick="showTab('agenda')"><i class="ti ti-calendar-event"></i> Agenda</button>
+  <button class="stab" id="stab-techniekers" onclick="showTab('techniekers')" style="display:none"><i class="ti ti-users"></i> Techniekers</button>
+  <button class="stab" id="stab-gebruikers" onclick="showTab('gebruikers')" style="display:none"><i class="ti ti-shield"></i> Gebruikers</button>
+</div>
+
+<!-- TICKETS PANE -->
+<div id="pane-tickets" class="page" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+    <div>
+      <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Tickets</div>
+      <div style="font-size:12px;color:var(--tx2)"><span class="live-dot"></span>Live</div>
+    </div>
+    <button class="btn primary" onclick="openTicketModal(null)"><i class="ti ti-plus"></i> Nieuw ticket</button>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-card"><div class="stat-label">Open</div><div class="stat-value" id="tk-open">0</div></div>
+    <div class="stat-card"><div class="stat-label">In behandeling</div><div class="stat-value" id="tk-prog">0</div></div>
+    <div class="stat-card"><div class="stat-label">Wachten klant</div><div class="stat-value" id="tk-wait">0</div></div>
+    <div class="stat-card"><div class="stat-label">Gesloten vandaag</div><div class="stat-value" id="tk-done">0</div></div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1rem;align-items:center">
+    <input id="tk-search" type="text" placeholder="Zoek ticket, klant, onderwerp..." oninput="renderTickets()" style="max-width:300px">
+    <div class="filter-bar" style="margin:0;padding:6px 12px"><span class="filter-lbl">Status:</span><div class="pills" id="pills-status"></div></div>
+    <div class="filter-bar" style="margin:0;padding:6px 12px"><span class="filter-lbl">Prioriteit:</span><div class="pills" id="pills-prio"></div></div>
+  </div>
+  <div id="ticket-list"></div>
+</div>
+
+<!-- AGENDA PANE -->
+<div id="pane-agenda" class="page" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+    <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Agenda & interventies</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="filter-bar" style="margin:0;padding:6px 12px"><span class="filter-lbl">Techniker:</span><div class="pills" id="pills-tech"></div></div>
+      <button class="btn sm" onclick="agendaPrev()"><i class="ti ti-chevron-left"></i></button>
+      <span id="week-lbl" style="font-size:13px;font-weight:600;white-space:nowrap;min-width:180px;text-align:center"></span>
+      <button class="btn sm" onclick="agendaNext()"><i class="ti ti-chevron-right"></i></button>
+      <button class="btn primary" onclick="openIntModal(null,null,null)"><i class="ti ti-plus"></i> Interventie</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;align-items:flex-start">
+    <div style="flex:1;min-width:0;overflow-x:auto" id="agenda-main"></div>
+    <div class="cal-sidebar">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="calPrev()"><i class="ti ti-chevron-left"></i></button>
+        <span class="cal-month" id="cal-month-lbl"></span>
+        <button class="cal-nav-btn" onclick="calNext()"><i class="ti ti-chevron-right"></i></button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-ev-section">
+        <div class="cal-ev-title"><i class="ti ti-calendar-event" style="margin-right:4px;color:var(--blue)"></i>Deze week</div>
+        <div id="cal-week-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TECHNIEKERS PANE -->
+<div id="pane-techniekers" class="page" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px">
+    <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Techniekers</div>
+    <button class="btn primary" onclick="openTechModal(null)"><i class="ti ti-plus"></i> Toevoegen</button>
+  </div>
+  <div id="tech-list"></div>
+</div>
+
+<!-- GEBRUIKERS PANE -->
+<div id="pane-gebruikers" class="page" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px">
+    <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Gebruikersbeheer</div>
+    <button class="btn primary" onclick="openInviteModal()"><i class="ti ti-user-plus"></i> Uitnodigen</button>
+  </div>
+  <div id="user-list"></div>
+</div>
+
+<!-- TICKET DETAIL PANEL -->
+<div class="detail-panel" id="detail-panel">
+  <div class="dp-header">
+    <button class="btn sm" onclick="closeDetail()"><i class="ti ti-x"></i></button>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:11px;color:var(--tx3)" id="dp-id"></div>
+      <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="dp-subject"></div>
+    </div>
+    <span id="dp-prio"></span>
+    <span id="dp-status"></span>
+    <button class="btn sm primary" onclick="openTicketModal(currentTicketId)"><i class="ti ti-edit"></i></button>
+  </div>
+  <div class="dp-body">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:1rem;font-size:12px;color:var(--tx2)">
+      <div><strong>Klant:</strong> <span id="dp-klant"></span></div>
+      <div><strong>Toegewezen:</strong> <span id="dp-assign"></span></div>
+      <div><strong>Aangemaakt:</strong> <span id="dp-created"></span></div>
+    </div>
+    <div id="dp-desc-box" style="background:var(--bg2);border-radius:var(--r);padding:12px;font-size:13px;line-height:1.6;margin-bottom:1.25rem;display:none"></div>
+    <div style="margin-bottom:1.25rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx2)"><i class="ti ti-calendar-event" style="color:var(--blue);margin-right:5px"></i>Interventies</div>
+        <button class="btn xs primary" onclick="openIntModal(null,currentTicketId,null)"><i class="ti ti-plus"></i> Plannen</button>
+      </div>
+      <div id="dp-interventies"></div>
+    </div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx2);margin-bottom:8px"><i class="ti ti-mail" style="color:var(--blue);margin-right:5px"></i>E-mail communicatie</div>
+    <div class="email-thread" id="dp-emails"></div>
+  </div>
+  <div class="dp-footer">
+    <div class="compose-box">
+      <div class="compose-to">Aan: <span id="compose-to" style="color:var(--tx);font-weight:500"></span></div>
+      <textarea id="compose-body" rows="3" placeholder="Typ je antwoord..."></textarea>
+      <div class="compose-actions">
+        <span style="font-size:11px;color:var(--tx3)">Van: <strong style="color:var(--tx2)" id="compose-from">service@blitzpower.be</strong></span>
+        <button class="btn sm primary" onclick="sendEmail()"><i class="ti ti-send"></i> Versturen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TICKET MODAL -->
+<div class="overlay" id="ticket-modal">
+  <div class="modal">
+    <div class="modal-hdr"><span class="modal-title" id="tk-modal-title">Nieuw ticket</span><button class="modal-close" onclick="closeTicketModal()"><i class="ti ti-x"></i></button></div>
+    <div class="grid2">
+      <div class="field"><label>Onderwerp *</label><input id="tk-subject" placeholder="Beschrijf het probleem kort"></div>
+      <div class="field"><label>Klant</label><div class="ac-wrap"><input id="tk-klant" placeholder="Zoek klant..." autocomplete="off" oninput="onTkKlant(this.value)"><div class="ac-list" id="tk-klant-list"></div></div></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>Prioriteit</label><select id="tk-prio"><option value="low">Laag</option><option value="med" selected>Normaal</option><option value="high">Hoog</option><option value="urg">Urgent</option></select></div>
+      <div class="field"><label>Status</label><select id="tk-status"><option value="open">Open</option><option value="prog">In behandeling</option><option value="wait">Wachten klant</option><option value="done">Opgelost</option><option value="closed">Gesloten</option></select></div>
+      <div class="field"><label>Toegewezen aan</label><select id="tk-assign"><option value="">— kies —</option></select></div>
+    </div>
+    <div class="field"><label>Omschrijving</label><textarea id="tk-desc" rows="3" placeholder="Meer details..."></textarea></div>
+    <div class="field"><label>E-mail klant</label><input id="tk-email" type="email" placeholder="klant@bedrijf.be"></div>
+    <div class="modal-footer">
+      <button class="btn danger" id="tk-del-btn" style="display:none;margin-right:auto" onclick="deleteTicket()"><i class="ti ti-trash"></i></button>
+      <button class="btn" onclick="closeTicketModal()">Annuleren</button>
+      <button class="btn primary" onclick="saveTicket()"><i class="ti ti-check"></i> Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- INTERVENTIE MODAL -->
+<div class="overlay" id="int-modal">
+  <div class="modal">
+    <div class="modal-hdr"><span class="modal-title" id="int-modal-title">Interventie plannen</span><button class="modal-close" onclick="closeIntModal()"><i class="ti ti-x"></i></button></div>
+    <div class="grid2">
+      <div class="field"><label>Datum *</label><input type="date" id="int-datum"></div>
+      <div class="field"><label>Starttijd</label><input type="time" id="int-start" value="08:00"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Eindtijd</label><input type="time" id="int-end" value="10:00"></div>
+      <div class="field"><label>Techniker</label><select id="int-tech"><option value="">— kies —</option></select></div>
+    </div>
+    <div class="field"><label>Omschrijving</label><input id="int-desc" placeholder="Wat moet er gedaan worden?"></div>
+    <div class="field"><label>Gelinkt ticket</label><select id="int-ticket"><option value="">— geen ticket —</option></select></div>
+    <div class="field"><label>Locatie / klant</label><input id="int-locatie" placeholder="Adres of bedrijfsnaam"></div>
+    <div class="field"><label>Notities voor techniker</label><textarea id="int-notities" rows="2" placeholder="Extra info..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn danger" id="int-del-btn" style="display:none;margin-right:auto" onclick="deleteInt()"><i class="ti ti-trash"></i></button>
+      <button class="btn" onclick="closeIntModal()">Annuleren</button>
+      <button class="btn primary" onclick="saveInt()"><i class="ti ti-check"></i> Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- TECHNIKER MODAL -->
+<div class="overlay" id="tech-modal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-hdr"><span class="modal-title" id="tech-modal-title">Techniker toevoegen</span><button class="modal-close" onclick="closeTechModal()"><i class="ti ti-x"></i></button></div>
+    <div class="field"><label>Naam *</label><input id="tech-naam" placeholder="Voornaam Achternaam"></div>
+    <div class="field"><label>Specialiteit</label><input id="tech-spec" placeholder="bv. EV-laadpunten, PV..."></div>
+    <div class="grid2">
+      <div class="field"><label>GSM</label><input id="tech-gsm" type="tel" placeholder="0499 123 456"></div>
+      <div class="field"><label>E-mail</label><input id="tech-email" type="email" placeholder="jan@blitzpower.be"></div>
+    </div>
+    <div class="field"><label>Kleur agenda</label><input id="tech-color" type="color" value="#3B82F6" style="width:60px;height:36px;padding:2px;border-radius:6px;cursor:pointer"></div>
+    <div class="modal-footer">
+      <button class="btn danger" id="tech-del-btn" style="display:none;margin-right:auto" onclick="deleteTech()"><i class="ti ti-trash"></i></button>
+      <button class="btn" onclick="closeTechModal()">Annuleren</button>
+      <button class="btn primary" onclick="saveTech()"><i class="ti ti-check"></i> Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- UITNODIGING MODAL -->
+<div class="overlay" id="invite-modal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-hdr"><span class="modal-title">Gebruiker uitnodigen</span><button class="modal-close" onclick="closeInviteModal()"><i class="ti ti-x"></i></button></div>
+    <div class="auth-err" id="inv-err"></div>
+    <div class="auth-msg" id="inv-msg"></div>
+    <div class="field"><label>E-mailadres *</label><input id="inv-email" type="email" placeholder="collega@blitzpower.be"></div>
+    <div class="field"><label>Naam</label><input id="inv-naam" placeholder="Voornaam Achternaam"></div>
+    <div class="field"><label>Rol</label><select id="inv-role"><option value="user">Gebruiker</option><option value="admin">Admin</option></select></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeInviteModal()">Annuleren</button>
+      <button class="btn primary" onclick="doInvite()"><i class="ti ti-send"></i> Uitnodigen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+// ── CONFIG ──
 const ADMIN_EMAIL    = 'sales@blitzpower.com';
-const SUPABASE_URL   = 'https://mckazjyrtxpxqhmyjtlb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ja2F6anlydHhweHFobXlqdGxiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3Nzk1NTYsImV4cCI6MjA5NzM1NTU1Nn0.gIxfb3rtXBPb6zwJM3Egr5DionMsYsLorXR8jFxhKt8';
-const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ja2F6anlydHhweHFobXlqdGxiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTc3OTU1NiwiZXhwIjoyMDk3MzU1NTU2fQ.F8-QRiWSGm2DfTMxbShu_2ZNXUcaqEiqFIc7LHzDlK0';
+const SUPABASE_URL   = 'https://rhztaqutznafsgprnkvn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoenRhcXV0em5hZnNncHJua3ZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2OTI2MjYsImV4cCI6MjA5NzI2ODYyNn0.n-ojVvnlm8x-g-O6WNoN8un67oR-yHMSlaJVuh_8caI';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoenRhcXV0em5hZnNncHJua3ZuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTY5MjYyNiwiZXhwIjoyMDk3MjY4NjI2fQ.Il_MMzOFoUDqmjp5Fm8M120CGswwGtNDnOo-b1iooEs';
 const MONTHS = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
 const DAY_SHORT = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
 const TK_STATUS = {open:'Open',prog:'In behandeling',wait:'Wachten klant',done:'Opgelost',closed:'Gesloten'};
@@ -715,8 +2000,18 @@ function onTkKlant(val){
   if(!val||val.length<2){list.classList.remove('open');return;}
   const q=val.toLowerCase();
   const matches=klanten.filter(k=>(k.naam||'').toLowerCase().includes(q)).slice(0,6);
-  list.innerHTML=matches.map(k=>`<div class="ac-item" onclick="document.getElementById('tk-klant').value='${k.naam.replace(/'/g,'\\'')}'  ;document.getElementById('tk-email').value='${(k.contactemail||k.email||'').replace(/'/g,'\\'')}' ;document.getElementById('tk-klant-list').classList.remove('open')"><strong>${k.naam}</strong>${k.contact?`<div style="font-size:11px;color:var(--tx3)">${k.contact}</div>`:''}</div>`).join('');
+  list.innerHTML=matches.map(k=>{
+    const naam=k.naam.replace(/'/g,'&#39;');
+    const email=(k.contactemail||k.email||'').replace(/'/g,'&#39;');
+    return '<div class="ac-item" onclick="selectTkKlant('+klanten.indexOf(k)+')"><strong>'+k.naam+'</strong>'+(k.contact?'<div style="font-size:11px;color:var(--tx3)">'+k.contact+'</div>':'')+'</div>';
+  }).join('');
   list.classList.toggle('open',!!matches.length);
+}
+function selectTkKlant(idx){
+  const k=klanten[idx];if(!k)return;
+  document.getElementById('tk-klant').value=k.naam||'';
+  document.getElementById('tk-email').value=k.contactemail||k.email||'';
+  document.getElementById('tk-klant-list').classList.remove('open');
 }
 document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))document.querySelectorAll('.ac-list').forEach(l=>l.classList.remove('open'));});
 
