@@ -791,7 +791,7 @@ function fmtDate(d) {
   const dt = new Date(d);
   return dt.getDate() + ' ' + MAANDEN[dt.getMonth()].substring(0, 3) + ' ' + dt.getFullYear();
 }
-function tktNr(t) { return 'TKT-' + String(t.nr || '?').padStart(4, '0'); }
+// tktNr: zie nextTktNr hierboven
 function statusBadge(s) {
   const map = { 'Nieuw': 't-nieuw', 'Open': 't-open', 'In behandeling': 't-inbehandeling', 'Wachten op klant': 't-wachten', 'Opgelost': 't-opgelost', 'Gesloten': 't-gesloten' };
   return '<span class="badge ' + (map[s] || '') + '">' + (s || '—') + '</span>';
@@ -806,8 +806,27 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 function nextTktNr() {
-  const max = tickets.reduce((m, t) => Math.max(m, t.nr || 0), 0);
-  return max + 1;
+  const now = new Date();
+  const prefix = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0');
+  // Zoek hoogste volgnummer voor deze maand
+  let max = 0;
+  tickets.forEach(t => {
+    const nr = String(t.nr || '');
+    if (nr.startsWith(prefix)) {
+      const seq = parseInt(nr.slice(6)) || 0;
+      if (seq > max) max = seq;
+    }
+  });
+  const seq = String(max + 1).padStart(3, '0');
+  return prefix + seq;
+}
+
+function tktNr(t) {
+  const nr = String(t.nr || '');
+  // Nieuw formaat: JJJJMM + 3 cijfers → TKT-202506-001
+  if (nr.length === 9) return 'TKT-' + nr.slice(0,6) + '-' + nr.slice(6);
+  // Oud formaat: gewoon nummeren
+  return 'TKT-' + String(nr).padStart(4, '0');
 }
 
 // ═══════════════════════════════════════════════
@@ -1085,32 +1104,40 @@ async function saveTicket() {
   const onderwerp = document.getElementById('tkt-onderwerp').value.trim();
   if (!onderwerp) { showToast('Onderwerp is verplicht.'); return; }
 
-  // Haal huidige status uit de flow
   const activeStep = document.querySelector('#tkt-status-flow .sf-step.active');
-  const status = activeStep ? activeStep.textContent : 'Nieuw';
+  const status = activeStep ? activeStep.textContent.trim() : 'Nieuw';
+  const userName = document.getElementById('current-user-name').textContent || 'service';
 
   const existing = editingTicketId ? tickets.find(x => x.id === editingTicketId) : null;
+
   const t = {
-    id: existing ? existing.id : (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
-    nr: existing ? existing.nr : nextTktNr(),
+    id:               existing ? existing.id       : (Date.now().toString(36) + Math.random().toString(36).slice(2,6)),
+    _rowid:           existing ? existing._rowid   : null,   // ← _rowid meenemen!
+    nr:               existing ? existing.nr       : nextTktNr(),
     onderwerp,
-    klant: document.getElementById('tkt-klant').value.trim(),
+    klant:            document.getElementById('tkt-klant').value.trim(),
     status,
-    prioriteit: document.getElementById('tkt-prio').value,
-    assigned: document.getElementById('tkt-assigned').value,
-    contactpersoon: document.getElementById('tkt-contact').value.trim(),
-    emailKlant: document.getElementById('tkt-email-klant').value.trim(),
-    telefoon: document.getElementById('tkt-tel').value.trim(),
-    omschrijving: document.getElementById('tkt-omschrijving').value.trim(),
-    gerelateerd: document.getElementById('tkt-gerelateerd').value.trim(),
+    prioriteit:       document.getElementById('tkt-prio').value,
+    assigned:         document.getElementById('tkt-assigned').value,
+    contactpersoon:   document.getElementById('tkt-contact').value.trim(),
+    emailKlant:       document.getElementById('tkt-email-klant').value.trim(),
+    telefoon:         document.getElementById('tkt-tel').value.trim(),
+    omschrijving:     document.getElementById('tkt-omschrijving').value.trim(),
+    gerelateerd:      document.getElementById('tkt-gerelateerd').value.trim(),
     linkedInterventieId: tktLinkedIntId || null,
-    berichten: existing ? (existing.berichten || []) : [],
-    log: existing ? (existing.log || []) : [],
-    aangemaakt: existing ? existing.aangemaakt : new Date().toISOString()
+    berichten:        existing ? (existing.berichten || []) : [],
+    log:              existing ? (existing.log      || []) : [],
+    aangemaakt:       existing ? existing.aangemaakt : new Date().toISOString()
   };
 
   if (!existing) {
-    t.log.push({ datum: new Date().toISOString(), tekst: 'Ticket aangemaakt door ' + (document.getElementById('current-user-name').textContent || 'service') });
+    t.log.push({ datum: new Date().toISOString(), tekst: 'Ticket aangemaakt door ' + userName });
+  } else {
+    t.log.push({ datum: new Date().toISOString(), tekst: 'Ticket bijgewerkt door ' + userName });
+  }
+
+  // Lokaal bijwerken
+  if (!existing) {
     tickets.unshift(t);
   } else {
     const i = tickets.findIndex(x => x.id === t.id);
@@ -1119,13 +1146,18 @@ async function saveTicket() {
 
   closeTicketModal();
   renderTickets();
+
+  // Opslaan naar Supabase — sbSave zet _rowid op t als nieuw
   try {
     await sbSave('service_tickets', t);
-    // _rowid is nu gezet door sbSave, update ook het ticket in de array
+    // Zorg dat _rowid ook in de lokale array staat voor volgende save
     const idx = tickets.findIndex(x => x.id === t.id);
-    if (idx > -1) tickets[idx]._rowid = t._rowid;
+    if (idx > -1 && t._rowid) tickets[idx]._rowid = t._rowid;
     showToast('Ticket opgeslagen ✓');
-  } catch (e) { showToast('Lokaal opgeslagen (DB offline).'); }
+  } catch (e) {
+    console.error('Save fout:', e);
+    showToast('Lokaal opgeslagen (DB offline).');
+  }
 }
 
 async function deleteTicket() {
@@ -1197,16 +1229,17 @@ async function saveInterventie() {
 
   const existing = editingInterventieId ? interventies.find(x => x.id === editingInterventieId) : null;
   const int = {
-    id: existing ? existing.id : (Date.now().toString(36) + Math.random().toString(36).slice(2, 5)),
+    id:       existing ? existing.id     : (Date.now().toString(36) + Math.random().toString(36).slice(2, 5)),
+    _rowid:   existing ? existing._rowid : null,   // ← _rowid meenemen!
     titel,
-    klant: document.getElementById('int-klant').value.trim(),
+    klant:    document.getElementById('int-klant').value.trim(),
     datum,
-    van: document.getElementById('int-van').value,
-    tot: document.getElementById('int-tot').value,
-    techniker: document.getElementById('int-techniker').value,
+    van:      document.getElementById('int-van').value,
+    tot:      document.getElementById('int-tot').value,
+    techniker:document.getElementById('int-techniker').value,
     ticketId: document.getElementById('int-ticket-link').value || null,
     notities: document.getElementById('int-notities').value.trim(),
-    kleur: currentIntKleur
+    kleur:    currentIntKleur
   };
 
   if (existing) {
