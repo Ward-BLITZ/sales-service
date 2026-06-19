@@ -677,21 +677,29 @@ async function sbFetch(table, opts = {}) {
 }
 
 async function sbSave(table, item) {
-  const body = { data: item };
-  if (item.id) {
-    await sbFetch(table + '?id=eq.' + item.id, {
+  // Maak een kopie zonder _rowid voor de data kolom
+  const dataToStore = Object.assign({}, item);
+  delete dataToStore._rowid;
+
+  if (item._rowid) {
+    // Bestaande rij updaten via de echte Supabase UUID (_rowid)
+    await sbFetch(table + '?id=eq.' + item._rowid, {
       method: 'PATCH',
       headers: { 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ data: item, updated_at: new Date().toISOString() })
+      body: JSON.stringify({ data: dataToStore, updated_at: new Date().toISOString() })
     });
-    return item.id;
+    return item._rowid;
   } else {
+    // Nieuwe rij aanmaken
     const r = await sbFetch(table, {
       method: 'POST',
       headers: { 'Prefer': 'return=representation' },
-      body: JSON.stringify({ data: item })
+      body: JSON.stringify({ data: dataToStore })
     });
-    return r && r[0] ? r[0].id : null;
+    const rowid = r && r[0] ? r[0].id : null;
+    // Sla _rowid op in het item zodat volgende save een PATCH doet
+    if (rowid) item._rowid = rowid;
+    return rowid;
   }
 }
 
@@ -1022,6 +1030,8 @@ async function sendTktMessage() {
   showToast(isNote ? 'Notitie opgeslagen ✓' : 'Antwoord opgeslagen ✓');
   try {
     await sbSave('service_tickets', t);
+    const tidx = tickets.findIndex(x => x.id === t.id);
+    if (tidx > -1) tickets[tidx]._rowid = t._rowid;
   } catch(e) {
     showToast('Lokaal opgeslagen (DB sync mislukt).');
   }
@@ -1111,8 +1121,11 @@ async function saveTicket() {
   renderTickets();
   try {
     await sbSave('service_tickets', t);
-    showToast('Ticket opgeslagen.');
-  } catch (e) { showToast('Lokaal opgeslagen.'); }
+    // _rowid is nu gezet door sbSave, update ook het ticket in de array
+    const idx = tickets.findIndex(x => x.id === t.id);
+    if (idx > -1) tickets[idx]._rowid = t._rowid;
+    showToast('Ticket opgeslagen ✓');
+  } catch (e) { showToast('Lokaal opgeslagen (DB offline).'); }
 }
 
 async function deleteTicket() {
@@ -1214,8 +1227,12 @@ async function saveInterventie() {
 
   closeInterventieModal();
   renderAgenda();
-  try { await sbSave('service_interventies', int); showToast('Interventie opgeslagen.'); }
-  catch (e) { showToast('Lokaal opgeslagen.'); }
+  try {
+    await sbSave('service_interventies', int);
+    const idx2 = interventies.findIndex(x => x.id === int.id);
+    if (idx2 > -1) interventies[idx2]._rowid = int._rowid;
+    showToast('Interventie opgeslagen ✓');
+  } catch (e) { showToast('Lokaal opgeslagen (DB offline).'); }
 }
 
 async function deleteInterventie() {
