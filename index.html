@@ -326,8 +326,10 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
   <div style="background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:1.5rem;margin-bottom:1.5rem">
     <div style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;margin-bottom:4px"><i class="ti ti-mail-forward" style="color:var(--green);margin-right:8px"></i>Mailbox koppeling</div>
     <div style="font-size:12px;color:var(--tx2);margin-bottom:1.25rem;line-height:1.6">
-      Verbind een e-mailaccount via IMAP/SMTP zodat je mails kan ontvangen en versturen vanuit de tool. De mails worden via een Supabase Edge Function gesynchroniseerd.<br>
-      <strong>Aanbevolen:</strong> Maak een apart <strong>service@blitzpower.be</strong> adres aan en gebruik Gmail, Outlook of een eigen mailserver.
+      Verbind een e-mailaccount via IMAP/SMTP zodat je mails kan ontvangen en versturen vanuit de tool. De mails worden via een Supabase Edge Function gesynchroniseerd.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap">
+      <button class="btn sm primary" onclick="prefillOutlook()"><i class="ti ti-brand-office"></i> Snel instellen: ward@blitzpower.com (Outlook)</button>
     </div>
     <div class="grid2">
       <div class="field"><label>Service e-mailadres (van)</label><input id="cfg-mail-from" placeholder="service@blitzpower.be" value=""></div>
@@ -346,9 +348,12 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
       <div class="field"><label>Wachtwoord / App Password</label><input id="cfg-smtp-pass" type="password" placeholder="••••••••"></div>
     </div>
     <div style="background:rgba(0,223,163,.07);border:1px solid rgba(0,223,163,.3);border-radius:var(--r);padding:12px 16px;font-size:12px;color:var(--tx2);margin-bottom:1rem">
-      <strong><i class="ti ti-info-circle" style="margin-right:4px;color:var(--green)"></i>Hoe instellen voor Gmail:</strong><br>
-      Activeer 2-staps-verificatie → Beveiliging → App-wachtwoorden → maak een wachtwoord voor "Mail". Gebruik <code>imap.gmail.com:993</code> en <code>smtp.gmail.com:587</code>.
-      Configuratie wordt versleuteld opgeslagen in Supabase.
+      <strong><i class="ti ti-info-circle" style="margin-right:4px;color:var(--green)"></i>Outlook / Microsoft 365 (ward@blitzpower.com):</strong><br>
+      <strong>IMAP:</strong> <code>outlook.office365.com</code> poort <code>993</code> (SSL)<br>
+      <strong>SMTP:</strong> <code>smtp.office365.com</code> poort <code>587</code> (STARTTLS)<br>
+      Gebruikersnaam = je volledige e-mailadres. Wachtwoord = je normale Microsoft wachtwoord.<br>
+      <em>Als je organisatie MFA gebruikt: ga naar <strong>security.microsoft.com</strong> → App passwords om een app-wachtwoord aan te maken.</em><br>
+      Configuratie wordt opgeslagen in Supabase (service_settings).
     </div>
     <button class="btn primary" onclick="saveMailConfig()"><i class="ti ti-check"></i> Opslaan</button>
   </div>
@@ -634,7 +639,9 @@ async function onLogin() {
   const name = currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || '';
   document.getElementById('current-user-name').textContent = name;
   await loadAll();
-  showTab('tickets');
+  // FIX 2: herstel laatste tab
+  const savedTab = sessionStorage.getItem('blitz_service_tab') || 'tickets';
+  showTab(savedTab);
   // midnight logout
   const midnight = new Date(); midnight.setHours(24,0,0,0);
   setTimeout(() => sb.auth.signOut(), midnight - Date.now());
@@ -747,6 +754,8 @@ async function loadKlanten() {
 // ═══════════════════════════════════════════════
 function showTab(tab) {
   activeTab = tab;
+  // FIX 2: sla actieve tab op zodat refresh/terugkeren werkt
+  try { sessionStorage.setItem('blitz_service_tab', tab); } catch(e) {}
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('tab-' + tab);
   if (btn) btn.classList.add('active');
@@ -1509,16 +1518,51 @@ async function saveMailConfig() {
   showToast('Mailbox-instellingen opgeslagen.');
 }
 
+function prefillOutlook() {
+  document.getElementById('cfg-mail-from').value = 'ward@blitzpower.com';
+  document.getElementById('cfg-mail-name').value = 'Blitz Power Service';
+  document.getElementById('cfg-imap-host').value = 'outlook.office365.com';
+  document.getElementById('cfg-imap-port').value = '993';
+  document.getElementById('cfg-smtp-host').value = 'smtp.office365.com';
+  document.getElementById('cfg-smtp-port').value = '587';
+  showToast('Outlook-instellingen ingevuld. Voeg nog je wachtwoord toe en sla op.');
+}
+
 function renderTechniekers() {
   const el = document.getElementById('techniekers-list');
   if (!el) return;
   if (!techniekers.length) { el.innerHTML = '<div style="font-size:12px;color:var(--tx3)">Nog geen techniekers toegevoegd.</div>'; return; }
   el.innerHTML = techniekers.map((t, i) =>
-    '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border-radius:var(--r);margin-bottom:6px">' +
-    '<span style="flex:1;font-size:13px">' + t + '</span>' +
+    '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-radius:var(--r);margin-bottom:6px" id="tech-row-' + i + '">' +
+    '<span class="tech-naam" id="tech-naam-' + i + '" style="flex:1;font-size:13px">' + t + '</span>' +
+    '<input class="tech-edit-input" id="tech-input-' + i + '" value="' + t.replace(/"/g, '&quot;') + '" style="flex:1;display:none;font-size:13px" onkeydown="if(event.key==='Enter')saveTechnikerEdit(' + i + ')">' +
+    '<button class="btn sm" onclick="startTechnikerEdit(' + i + ')" id="tech-edit-btn-' + i + '" title="Naam bewerken"><i class="ti ti-pencil"></i></button>' +
+    '<button class="btn sm primary" onclick="saveTechnikerEdit(' + i + ')" id="tech-save-btn-' + i + '" style="display:none"><i class="ti ti-check"></i></button>' +
     '<button class="btn sm danger" onclick="removeTechniker(' + i + ')"><i class="ti ti-trash"></i></button>' +
     '</div>'
   ).join('');
+}
+
+function startTechnikerEdit(i) {
+  document.getElementById('tech-naam-' + i).style.display = 'none';
+  document.getElementById('tech-input-' + i).style.display = 'block';
+  document.getElementById('tech-edit-btn-' + i).style.display = 'none';
+  document.getElementById('tech-save-btn-' + i).style.display = 'inline-flex';
+  document.getElementById('tech-input-' + i).focus();
+}
+
+function saveTechnikerEdit(i) {
+  const val = document.getElementById('tech-input-' + i)?.value?.trim();
+  if (!val) { showToast('Naam mag niet leeg zijn.'); return; }
+  const old = techniekers[i];
+  techniekers[i] = val;
+  // Update ook alle tickets en interventies die deze techniker hadden
+  tickets.forEach(t => { if (t.assigned === old) t.assigned = val; });
+  interventies.forEach(iv => { if (iv.techniker === old) iv.techniker = val; });
+  renderTechniekers();
+  fillTechnikerSelects();
+  saveSettings();
+  showToast('Naam bijgewerkt naar "' + val + '".');
 }
 
 function fillTechnikerSelects() {
@@ -1550,10 +1594,23 @@ function removeTechniker(i) {
   showToast('Techniker verwijderd.');
 }
 
-// Close modals on backdrop
-['ticket-modal', 'interventie-modal', 'link-int-modal', 'nieuw-mail-modal'].forEach(id => {
+// FIX 3: ticket-modal sluit NIET op backdrop click (auto-save ipv verlies)
+// Interventie, link en mail modals wel sluiten op backdrop
+['interventie-modal', 'link-int-modal', 'nieuw-mail-modal'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+// Ticket modal: klik naast = auto-opslaan
+const _tktModal = document.getElementById('ticket-modal');
+if (_tktModal) _tktModal.addEventListener('click', function(e) {
+  if (e.target === this) {
+    const onderwerp = document.getElementById('tkt-onderwerp')?.value?.trim();
+    if (onderwerp) {
+      saveTicket();
+    } else {
+      closeTicketModal();
+    }
+  }
 });
 </script>
 </body>
