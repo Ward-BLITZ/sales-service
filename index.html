@@ -263,9 +263,14 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 
 <!-- AGENDA PANE -->
 <div id="pane-agenda" class="page" style="display:none">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:1.25rem">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:1rem">
     <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Agenda Interventies</div>
     <button class="btn primary" onclick="openInterventieModal(null,null)"><i class="ti ti-plus"></i> Nieuwe interventie</button>
+  </div>
+  <!-- TECHNIKER FILTER -->
+  <div style="background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap" id="agenda-tech-filterbar">
+    <span style="font-size:12px;color:var(--tx2);white-space:nowrap"><i class="ti ti-users" style="margin-right:4px"></i>Techniker:</span>
+    <div id="agenda-tech-pills" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   </div>
   <div class="agenda-layout">
     <div class="agenda-main">
@@ -448,14 +453,14 @@ CREATE POLICY "allow all" ON service_settings FOR ALL USING (true) WITH CHECK (t
         <div style="font-family:'Poppins',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx2);margin-bottom:10px">Berichten &amp; notities</div>
         <div class="tkt-conv" id="tkt-conv"></div>
         <div style="display:flex;gap:6px;margin-bottom:8px">
-          <button class="btn sm" id="tkt-reply-toggle" onclick="toggleReplyMode('reply')" style="background:rgba(0,223,163,.1);border-color:rgba(0,223,163,.3);color:var(--dark)"><i class="ti ti-mail-forward"></i> Antwoord naar klant</button>
+          <button class="btn sm" id="tkt-reply-toggle" onclick="toggleReplyMode('reply')"><i class="ti ti-mail-forward"></i> Antwoord naar klant</button>
           <button class="btn sm" id="tkt-note-toggle" onclick="toggleReplyMode('note')"><i class="ti ti-note"></i> Interne notitie</button>
         </div>
         <div id="tkt-reply-area" style="display:none">
           <textarea id="tkt-reply-text" rows="3" placeholder="Typ hier uw antwoord..."></textarea>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
             <span id="tkt-reply-mode-lbl" style="font-size:11px;color:var(--tx3)"></span>
-            <button class="btn primary sm" onclick="sendTktMessage()"><i class="ti ti-send"></i> Versturen</button>
+            <button class="btn primary sm" id="tkt-send-btn" onclick="sendTktMessage()"><i class="ti ti-send"></i> Versturen</button>
           </div>
         </div>
       </div>
@@ -587,6 +592,7 @@ let tktReplyMode = 'reply'; // 'reply' | 'note'
 let tktLinkedIntId = null;
 let currentIntKleur = 0;
 let klanten = []; // from shared klanten table
+let agendaTechFilter = []; // lege array = alle techniekers zichtbaar
 
 const STATUSSEN = ['Nieuw','Open','In behandeling','Wachten op klant','Opgelost','Gesloten'];
 const PRIOS = ['Laag','Normaal','Hoog','Urgent'];
@@ -953,41 +959,72 @@ function renderTktLog(t) {
 function toggleReplyMode(mode) {
   const area = document.getElementById('tkt-reply-area');
   if (tktReplyMode === mode && area.style.display !== 'none') {
-    area.style.display = 'none'; return;
+    area.style.display = 'none';
+    document.getElementById('tkt-reply-toggle').style.background = '';
+    document.getElementById('tkt-note-toggle').style.background = '';
+    return;
   }
   tktReplyMode = mode;
   area.style.display = 'block';
   document.getElementById('tkt-reply-text').value = '';
-  document.getElementById('tkt-reply-mode-lbl').textContent =
-    mode === 'reply' ? 'Wordt verstuurd naar de klant via e-mail' : 'Interne notitie — niet zichtbaar voor klant';
-  document.getElementById('tkt-reply-toggle').style.background = mode === 'reply' ? 'rgba(0,223,163,.15)' : '';
-  document.getElementById('tkt-note-toggle').style.background = mode === 'note' ? 'rgba(250,199,117,.2)' : '';
+  document.getElementById('tkt-reply-text').placeholder = mode === 'reply' ? 'Typ hier uw antwoord naar de klant...' : 'Typ hier uw interne notitie...';
+
+  // Knoplabel + kleur aanpassen
+  const sendBtn = document.getElementById('tkt-send-btn');
+  if (mode === 'reply') {
+    document.getElementById('tkt-reply-mode-lbl').textContent = 'Wordt verstuurd naar de klant via e-mail';
+    sendBtn.innerHTML = '<i class="ti ti-send"></i> Versturen';
+    sendBtn.style.background = '';
+    sendBtn.style.borderColor = '';
+    document.getElementById('tkt-reply-toggle').style.cssText = 'background:rgba(0,223,163,.15);border-color:rgba(0,223,163,.4);color:var(--dark)';
+    document.getElementById('tkt-note-toggle').style.cssText = '';
+  } else {
+    document.getElementById('tkt-reply-mode-lbl').textContent = 'Interne notitie — niet zichtbaar voor klant';
+    sendBtn.innerHTML = '<i class="ti ti-note"></i> Notitie opslaan';
+    sendBtn.style.background = '#f59e0b';
+    sendBtn.style.borderColor = '#f59e0b';
+    document.getElementById('tkt-note-toggle').style.cssText = 'background:rgba(250,199,117,.25);border-color:rgba(245,158,11,.5);color:#92400e';
+    document.getElementById('tkt-reply-toggle').style.cssText = '';
+  }
+  document.getElementById('tkt-reply-text').focus();
 }
 
-function sendTktMessage() {
+async function sendTktMessage() {
   const tekst = document.getElementById('tkt-reply-text').value.trim();
-  if (!tekst) return;
+  if (!tekst) { showToast('Typ eerst een bericht.'); return; }
   const t = editingTicketId ? tickets.find(x => x.id === editingTicketId) : null;
-  if (!t) return;
-  t.berichten = t.berichten || [];
+  if (!t) { showToast('Sla het ticket eerst op.'); return; }
+
   const userName = document.getElementById('current-user-name').textContent || 'Service';
+  t.berichten = t.berichten || [];
+  t.log = t.log || [];
+
   if (tktReplyMode === 'note') {
     t.berichten.push({ type: 'note', van: userName, tekst, datum: new Date().toISOString() });
+    t.log.push({ datum: new Date().toISOString(), tekst: 'Interne notitie toegevoegd door ' + userName });
   } else {
     t.berichten.push({ type: 'mail', richting: 'out', van: userName, tekst, datum: new Date().toISOString() });
-    // Stuur mail naar klant
+    t.log.push({ datum: new Date().toISOString(), tekst: 'Antwoord verstuurd naar klant door ' + userName });
     const emailKlant = document.getElementById('tkt-email-klant').value.trim();
-    if (emailKlant) {
-      saveTktMailOut(t, emailKlant, tekst);
-    }
+    if (emailKlant) saveTktMailOut(t, emailKlant, tekst);
   }
-  t.log = t.log || [];
-  t.log.push({ datum: new Date().toISOString(), tekst: (tktReplyMode === 'note' ? 'Interne notitie toegevoegd' : 'Mail verstuurd naar klant') });
+
+  // Reset UI
   document.getElementById('tkt-reply-text').value = '';
   document.getElementById('tkt-reply-area').style.display = 'none';
+  document.getElementById('tkt-reply-toggle').style.cssText = '';
+  document.getElementById('tkt-note-toggle').style.cssText = '';
   renderTktConv(t);
   renderTktLog(t);
-  showToast(tktReplyMode === 'note' ? 'Notitie opgeslagen.' : 'Antwoord opgeslagen (mail via instellingen).');
+
+  // Direct opslaan naar Supabase
+  const isNote = tktReplyMode === 'note';
+  showToast(isNote ? 'Notitie opgeslagen ✓' : 'Antwoord opgeslagen ✓');
+  try {
+    await sbSave('service_tickets', t);
+  } catch(e) {
+    showToast('Lokaal opgeslagen (DB sync mislukt).');
+  }
 }
 
 async function saveTktMailOut(t, aan, tekst) {
@@ -1228,21 +1265,69 @@ function setLinkedInt(id) {
 // ═══════════════════════════════════════════════
 // AGENDA
 // ═══════════════════════════════════════════════
+function getVisibleInterventies() {
+  if (!agendaTechFilter.length) return interventies;
+  return interventies.filter(i => agendaTechFilter.includes(i.techniker || ''));
+}
+
+function renderTechFilterPills() {
+  const el = document.getElementById('agenda-tech-pills');
+  if (!el) return;
+  const alleActief = agendaTechFilter.length === 0;
+  const tkKleuren = ['#00DFA3','#3b82f6','#f59e0b','#ef4444','#8b5cf6'];
+  let html = '<button onclick="setAgendaTechFilter([])" style="font-family:Inter,sans-serif;font-size:12px;font-weight:' + (alleActief ? '700' : '500') + ';padding:5px 13px;border-radius:20px;cursor:pointer;border:1px solid var(--bd2);background:' + (alleActief ? 'var(--dark)' : 'var(--bg2)') + ';color:' + (alleActief ? '#fff' : 'var(--tx2)') + '">Alle</button>';
+  techniekers.forEach(function(tk, idx) {
+    const kleur = tkKleuren[idx % tkKleuren.length];
+    const actief = agendaTechFilter.includes(tk);
+    const textKleur = (kleur === '#00DFA3' || kleur === '#f59e0b') ? '#1D252D' : '#fff';
+    html += '<button onclick="toggleAgendaTech(\'' + tk.replace(/'/g, "\\'") + '\')" style="font-family:Inter,sans-serif;font-size:12px;font-weight:' + (actief ? '700' : '500') + ';padding:5px 13px;border-radius:20px;cursor:pointer;transition:all .15s;border:2px solid ' + kleur + ';background:' + (actief ? kleur : 'transparent') + ';color:' + (actief ? textKleur : 'var(--tx2)') + ';display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:' + kleur + ';flex-shrink:0"></span>' + tk + '</button>';
+  });
+  const heeftOnbekend = interventies.some(function(i) { return !i.techniker; });
+  if (heeftOnbekend) {
+    const actief = agendaTechFilter.includes('');
+    html += '<button onclick="toggleAgendaTech(\'\')" style="font-family:Inter,sans-serif;font-size:12px;padding:5px 13px;border-radius:20px;cursor:pointer;border:1px solid var(--bd2);background:' + (actief ? 'var(--bg3)' : 'transparent') + ';color:var(--tx2)">Niet toegewezen</button>';
+  }
+  el.innerHTML = html;
+}
+
+function setAgendaTechFilter(arr) {
+  agendaTechFilter = arr;
+  renderTechFilterPills();
+  renderAgenda();
+}
+
+function toggleAgendaTech(tk) {
+  if (agendaTechFilter.includes(tk)) {
+    agendaTechFilter = agendaTechFilter.filter(function(x) { return x !== tk; });
+  } else {
+    agendaTechFilter.push(tk);
+  }
+  renderTechFilterPills();
+  renderAgenda();
+}
+
 function renderAgenda() {
   const lbl = document.getElementById('agenda-month-lbl');
   lbl.textContent = MAANDEN[agendaMonth] + ' ' + agendaYear;
 
+  renderTechFilterPills();
+
   const grid = document.getElementById('agenda-grid');
-  // Header
   const days = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
-  let html = days.map(d => '<div class="agenda-day-hdr">' + d + '</div>').join('');
+  let html = days.map(function(d) { return '<div class="agenda-day-hdr">' + d + '</div>'; }).join('');
 
   const firstDay = new Date(agendaYear, agendaMonth, 1);
-  let startDow = firstDay.getDay(); // 0=Sun
-  startDow = startDow === 0 ? 6 : startDow - 1; // Monday-first
+  let startDow = firstDay.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
   const daysInMonth = new Date(agendaYear, agendaMonth + 1, 0).getDate();
   const daysInPrevMonth = new Date(agendaYear, agendaMonth, 0).getDate();
   const todayStr = today();
+
+  const tkKleuren = ['#00DFA3','#3b82f6','#f59e0b','#ef4444','#8b5cf6'];
+  const tkKleurMap = {};
+  techniekers.forEach(function(tk, idx) { tkKleurMap[tk] = tkKleuren[idx % tkKleuren.length]; });
+
+  const zichtbaar = getVisibleInterventies();
 
   let cells = [];
   for (let i = 0; i < startDow; i++) {
@@ -1250,26 +1335,24 @@ function renderAgenda() {
   }
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = agendaYear + '-' + String(agendaMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-    cells.push({ day: d, other: false, ds });
+    cells.push({ day: d, other: false, ds: ds });
   }
   let extra = 1;
   while (cells.length % 7 !== 0) { cells.push({ day: extra++, other: true, ds: null }); }
 
-  html += cells.map(c => {
+  html += cells.map(function(c) {
     const classes = ['agenda-cell'];
     if (c.other) classes.push('other-month');
     if (c.ds === todayStr) classes.push('today');
     if (c.ds === agendaSelDag) classes.push('selected');
-    const dayInts = c.ds ? interventies.filter(i => i.datum === c.ds) : [];
-    const intHtml = dayInts.map(i =>
-      '<div class="agenda-interventie int-kleur-' + (i.kleur || 0) + '" onclick="event.stopPropagation();openInterventieModal(\'' + i.id + '\',null)" title="' + (i.titel || '') + '">' +
-      (i.van ? i.van + ' ' : '') + (i.titel || '') + '</div>'
-    ).join('');
-    return '<div class="' + classes.join(' ') + '" onclick="' + (c.ds ? 'agendaSelectDag(\'' + c.ds + '\')' : '') + '">' +
-      '<div class="agenda-day-num">' + c.day + '</div>' +
-      intHtml +
-      (c.ds ? '<button class="agenda-cell-add" onclick="event.stopPropagation();openInterventieModal(null,\'' + c.ds + '\')"><i class="ti ti-plus"></i></button>' : '') +
-      '</div>';
+    const dayInts = c.ds ? zichtbaar.filter(function(i) { return i.datum === c.ds; }) : [];
+    const intHtml = dayInts.map(function(i) {
+      const kleur = tkKleurMap[i.techniker] || INT_KLEUREN[i.kleur || 0];
+      const textKleur = (kleur === '#00DFA3' || kleur === '#f59e0b') ? '#1D252D' : '#fff';
+      const voornaam = i.techniker ? i.techniker.split(' ')[0] : '';
+      return '<div style="font-size:10px;font-weight:600;padding:2px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;background:' + kleur + ';color:' + textKleur + '" onclick="event.stopPropagation();openInterventieModal(\'' + i.id + '\',null)" title="' + (i.titel || '') + (i.techniker ? ' — ' + i.techniker : '') + '">' + (i.van ? i.van + ' ' : '') + (i.titel || '') + (voornaam ? ' · ' + voornaam : '') + '</div>';
+    }).join('');
+    return '<div class="' + classes.join(' ') + '" onclick="' + (c.ds ? 'agendaSelectDag(\'' + c.ds + '\')' : '') + '"><div class="agenda-day-num">' + c.day + '</div>' + intHtml + (c.ds ? '<button class="agenda-cell-add" onclick="event.stopPropagation();openInterventieModal(null,\'' + c.ds + '\')"><i class="ti ti-plus"></i></button>' : '') + '</div>';
   }).join('');
 
   grid.innerHTML = html;
@@ -1277,11 +1360,12 @@ function renderAgenda() {
   if (agendaSelDag) agendaSelectDag(agendaSelDag);
 }
 
+
 function agendaSelectDag(ds) {
   agendaSelDag = ds;
   const d = new Date(ds);
   document.getElementById('agenda-dag-titel').textContent = d.getDate() + ' ' + MAANDEN[d.getMonth()] + ' ' + d.getFullYear();
-  const dayInts = interventies.filter(i => i.datum === ds).sort((a, b) => (a.van || '').localeCompare(b.van || ''));
+  const dayInts = getVisibleInterventies().filter(i => i.datum === ds).sort((a, b) => (a.van || '').localeCompare(b.van || ''));
   const el = document.getElementById('agenda-dag-interventies');
   if (!dayInts.length) { el.innerHTML = '<div style="font-size:12px;color:var(--tx3)">Geen interventies</div>'; return; }
   el.innerHTML = dayInts.map(i => {
@@ -1299,7 +1383,7 @@ function agendaSelectDag(ds) {
 
 function renderAgendaAankomend() {
   const t = today();
-  const list = interventies.filter(i => i.datum && i.datum >= t).sort((a, b) => a.datum.localeCompare(b.datum)).slice(0, 8);
+  const list = getVisibleInterventies().filter(i => i.datum && i.datum >= t).sort((a, b) => a.datum.localeCompare(b.datum)).slice(0, 8);
   const el = document.getElementById('agenda-aankomend');
   if (!list.length) { el.innerHTML = '<div style="font-size:12px;color:var(--tx3)">Geen aankomende interventies</div>'; return; }
   el.innerHTML = list.map(i => {
