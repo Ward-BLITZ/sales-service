@@ -1535,7 +1535,7 @@ function renderTechniekers() {
   el.innerHTML = techniekers.map((t, i) =>
     '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-radius:var(--r);margin-bottom:6px" id="tech-row-' + i + '">' +
     '<span class="tech-naam" id="tech-naam-' + i + '" style="flex:1;font-size:13px">' + t + '</span>' +
-    '<input class="tech-edit-input" id="tech-input-' + i + '" value="' + t.replace(/"/g, '&quot;') + '" style="flex:1;display:none;font-size:13px" onkeydown="if(event.key==='Enter')saveTechnikerEdit(' + i + ')">' +
+    '<input class="tech-edit-input" id="tech-input-' + i + '" value="' + t.replace(/"/g, '&quot;') + '" style="flex:1;display:none;font-size:13px" data-idx="' + i + '">' +
     '<button class="btn sm" onclick="startTechnikerEdit(' + i + ')" id="tech-edit-btn-' + i + '" title="Naam bewerken"><i class="ti ti-pencil"></i></button>' +
     '<button class="btn sm primary" onclick="saveTechnikerEdit(' + i + ')" id="tech-save-btn-' + i + '" style="display:none"><i class="ti ti-check"></i></button>' +
     '<button class="btn sm danger" onclick="removeTechniker(' + i + ')"><i class="ti ti-trash"></i></button>' +
@@ -1545,10 +1545,12 @@ function renderTechniekers() {
 
 function startTechnikerEdit(i) {
   document.getElementById('tech-naam-' + i).style.display = 'none';
-  document.getElementById('tech-input-' + i).style.display = 'block';
+  const inp = document.getElementById('tech-input-' + i);
+  inp.style.display = 'block';
   document.getElementById('tech-edit-btn-' + i).style.display = 'none';
   document.getElementById('tech-save-btn-' + i).style.display = 'inline-flex';
-  document.getElementById('tech-input-' + i).focus();
+  inp.focus();
+  inp.onkeydown = function(e) { if (e.key === 'Enter') saveTechnikerEdit(i); };
 }
 
 function saveTechnikerEdit(i) {
