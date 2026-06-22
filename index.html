@@ -106,14 +106,7 @@ function renderSettingsPage() {
     // Ook SQL voor service_projecten tonen
     const sqlEl = inst.querySelector('pre');
     if (sqlEl && !sqlEl.textContent.includes('service_projecten')) {
-      sqlEl.textContent += '
-CREATE TABLE IF NOT EXISTS service_projecten (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  data jsonb NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE service_projecten ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow all" ON service_projecten FOR ALL USING (true) WITH CHECK (true);';
+      sqlEl.textContent += '\nCREATE TABLE IF NOT EXISTS service_projecten (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  data jsonb NOT NULL,\n  created_at timestamptz DEFAULT now()\n);\nALTER TABLE service_projecten ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "allow all" ON service_projecten FOR ALL USING (true) WITH CHECK (true);';
     }
   }
 }
@@ -2500,14 +2493,7 @@ function renderSettingsPage() {
     // Ook SQL voor service_projecten tonen
     const sqlEl = inst.querySelector('pre');
     if (sqlEl && !sqlEl.textContent.includes('service_projecten')) {
-      sqlEl.textContent += '
-CREATE TABLE IF NOT EXISTS service_projecten (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  data jsonb NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE service_projecten ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow all" ON service_projecten FOR ALL USING (true) WITH CHECK (true);';
+      sqlEl.textContent += '\nCREATE TABLE IF NOT EXISTS service_projecten (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  data jsonb NOT NULL,\n  created_at timestamptz DEFAULT now()\n);\nALTER TABLE service_projecten ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "allow all" ON service_projecten FOR ALL USING (true) WITH CHECK (true);';
     }
   }
 }
