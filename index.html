@@ -560,7 +560,6 @@ async function saveSR() {
 }
 
 // Koppel SR knop aan agenda dag-sidebar
-var _origAgendaSelectDag = agendaSelectDag;
 agendaSelectDag = function(ds) {
   agendaSelDag = ds;
   var d = new Date(ds);
@@ -1713,7 +1712,6 @@ function renderTickets() {
   if (badge) { if (opgelostCount) { badge.textContent = opgelostCount; badge.style.display = 'inline'; } else { badge.style.display = 'none'; } }
 }
 
-let filterOpgelostAssigned = 'Alle';
 
 function renderOpgelost() {
   const alleAssigned = ['Alle', ...new Set(tickets.filter(t => ['Opgelost','Gesloten'].includes(t.status) && t.assigned).map(t => t.assigned))];
@@ -2803,7 +2801,6 @@ function getISOWeek(d) {
   return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
 }
 
-var WP_DEFAULTS = {
   'Kursat': {
     '8:30-10:30':  ['P0','1st','P0','1st','P0'],
     '10:30-12:30': ['','','','1st',''],
@@ -3144,8 +3141,6 @@ function renderKPI() {
 // ═══════════════════════════════════════════════
 // SERVICERAPPORT
 // ═══════════════════════════════════════════════
-var srOndFacVal = 'ja';
-var srOnderdelen = [];
 
 function srToggle(field, val) {
   srData[field] = val;
