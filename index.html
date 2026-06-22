@@ -611,7 +611,7 @@ async function updateUserRol(userId, selectEl) {
   selectEl.className = 'role-select-inline role-' + newRol;
   try {
     var res = await fetch(SB_URL + '/auth/v1/admin/users/' + userId, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: {'apikey':SB_SERVICE,'Authorization':'Bearer '+SB_SERVICE,'Content-Type':'application/json'},
       body: JSON.stringify({user_metadata: Object.assign({}, u.user_metadata, {role:newRol})})
     });
@@ -942,12 +942,12 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
   <button class="tab-btn" id="tab-projecten" onclick="showTab('projecten')"><i class="ti ti-folder"></i> Projecten</button>
   <button class="tab-btn" id="tab-agenda" onclick="showTab('agenda')"><i class="ti ti-calendar"></i> Agenda</button>
   <button class="tab-btn" id="tab-mail" onclick="showTab('mail')"><i class="ti ti-mail"></i> Mailbox <span id="mail-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;border-radius:20px;padding:1px 6px;margin-left:2px"></span></button>
-  <button class="tab-btn manager-only" id="tab-weekplan" onclick="showTab('weekplan')" style="display:none"><i class="ti ti-layout-grid"></i> Weekplan</button>
-  <button class="tab-btn manager-only" id="tab-ticketlog" onclick="showTab('ticketlog')" style="display:none"><i class="ti ti-report-analytics"></i> Ticket Log</button>
-  <button class="tab-btn manager-only" id="tab-weekrapport" onclick="showTab('weekrapport')" style="display:none"><i class="ti ti-chart-bar"></i> Weekrapport</button>
-  <button class="tab-btn manager-only" id="tab-kpi" onclick="showTab('kpi')" style="display:none"><i class="ti ti-dashboard"></i> KPI</button>
+  <button class="tab-btn manager-only" id="tab-weekplan" onclick="showTab('weekplan')"><i class="ti ti-layout-grid"></i> Weekplan</button>
+  <button class="tab-btn manager-only" id="tab-ticketlog" onclick="showTab('ticketlog')"><i class="ti ti-report-analytics"></i> Ticket Log</button>
+  <button class="tab-btn manager-only" id="tab-weekrapport" onclick="showTab('weekrapport')"><i class="ti ti-chart-bar"></i> Weekrapport</button>
+  <button class="tab-btn manager-only" id="tab-kpi" onclick="showTab('kpi')"><i class="ti ti-dashboard"></i> KPI</button>
   <button class="tab-btn" id="tab-info" onclick="showTab('info')"><i class="ti ti-info-circle"></i> Info & Workflow</button>
-  <button class="tab-btn admin-only" id="tab-gebruikers" onclick="showTab('gebruikers')" style="display:none"><i class="ti ti-users-group"></i> Gebruikers</button>
+  <button class="tab-btn admin-only" id="tab-gebruikers" onclick="showTab('gebruikers')"><i class="ti ti-users-group"></i> Gebruikers</button>
   <button class="tab-btn" id="tab-instellingen" onclick="showTab('instellingen')"><i class="ti ti-settings"></i> Instellingen</button>
   <div class="tab-right">
     <span id="role-badge" style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;background:rgba(0,223,163,.15);color:var(--green);margin-right:6px;display:none"></span>
@@ -1432,6 +1432,8 @@ async function onLogin() {
   const name = currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || '';
   document.getElementById('current-user-name').textContent = name;
   await loadAll();
+  // Forceer detectRole nogmaals na volledig laden zodat tabs zeker zichtbaar zijn
+  await detectRole();
   const savedTab = sessionStorage.getItem('blitz_service_tab') || 'tickets';
   showTab(savedTab);
   const midnight = new Date(); midnight.setHours(24,0,0,0);
@@ -2634,11 +2636,12 @@ async function detectRole() {
     badge.style.background = isAdmin ? 'rgba(245,158,11,.2)' : (isManager ? 'rgba(0,223,163,.15)' : 'rgba(180,180,180,.15)');
     badge.style.color = isAdmin ? '#92400e' : (isManager ? 'var(--green)' : 'var(--tx3)');
   }
+  // Toon/verberg tabs met inline style (overschrijft CSS class)
   document.querySelectorAll('.manager-only').forEach(function(el) {
-    el.style.display = isManager ? '' : 'none';
+    el.style.display = isManager ? 'inline-flex' : 'none';
   });
   document.querySelectorAll('.admin-only').forEach(function(el) {
-    el.style.display = isAdmin ? '' : 'none';
+    el.style.display = isAdmin ? 'inline-flex' : 'none';
   });
 }
 
@@ -3346,7 +3349,7 @@ async function updateUserRol(userId, selectEl) {
   selectEl.className = 'role-select-inline role-' + newRol;
   try {
     var res = await fetch(SB_URL + '/auth/v1/admin/users/' + userId, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: {'apikey':SB_SERVICE,'Authorization':'Bearer '+SB_SERVICE,'Content-Type':'application/json'},
       body: JSON.stringify({user_metadata: Object.assign({}, u.user_metadata, {role:newRol})})
     });
