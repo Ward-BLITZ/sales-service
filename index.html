@@ -3673,7 +3673,7 @@ function renderAgendaWeek() {
       intsLopend.forEach(function(iv) {
         var kleur = tkKleurMap[iv.techniker] || '#00DFA3';
         var textK = (kleur==='#00DFA3'||kleur==='#f59e0b') ? '#1D252D' : '#fff';
-        html += '<div onclick="event.stopPropagation();openInterventieModal('' + iv.id + '',null)" style="height:calc(100% - 4px);background:' + kleur + '40;border-left:3px solid ' + kleur + ';border-radius:2px;margin:2px 2px;cursor:pointer"></div>';
+        html += '<div onclick="event.stopPropagation();openInterventieModal(\'' + iv.id + '\',null)" style="height:calc(100% - 4px);background:' + kleur + '40;border-left:3px solid ' + kleur + ';border-radius:2px;margin:2px 2px;cursor:pointer"></div>';
       });
 
       html += '</div>';
