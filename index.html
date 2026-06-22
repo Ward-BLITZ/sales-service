@@ -228,6 +228,7 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 <div class="tabs" id="main-tabs" style="display:none">
   <div class="auth-logo-mark" style="width:28px;height:28px;margin:8px 10px 8px 0;flex-shrink:0"><svg viewBox="0 0 18 18"><path d="M9 1L2 10h6l-1 7 9-10h-6z"/></svg></div>
   <button class="tab-btn active" id="tab-tickets" onclick="showTab('tickets')"><i class="ti ti-ticket"></i> Tickets</button>
+  <button class="tab-btn" id="tab-opgelost" onclick="showTab('opgelost')"><i class="ti ti-circle-check"></i> Opgelost <span id="opgelost-badge" style="display:none;background:var(--green);color:var(--dark);font-size:10px;font-weight:700;border-radius:20px;padding:1px 6px;margin-left:2px"></span></button>
   <button class="tab-btn" id="tab-agenda" onclick="showTab('agenda')"><i class="ti ti-calendar"></i> Agenda</button>
   <button class="tab-btn" id="tab-mail" onclick="showTab('mail')"><i class="ti ti-mail"></i> Mailbox <span id="mail-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;border-radius:20px;padding:1px 6px;margin-left:2px"></span></button>
   <button class="tab-btn" id="tab-instellingen" onclick="showTab('instellingen')"><i class="ti ti-settings"></i> Instellingen</button>
@@ -253,12 +254,52 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
     <div class="pills" id="pills-status"></div>
     <span class="filter-label" style="margin-left:10px"><i class="ti ti-flag" style="margin-right:4px"></i>Prioriteit:</span>
     <div class="pills" id="pills-prio"></div>
-    <input id="tkt-search" type="text" placeholder="Zoeken..." oninput="renderTickets()" style="max-width:220px;margin-left:auto">
+    <input id="tkt-search" type="text" placeholder="Zoeken..." oninput="renderTickets()" style="max-width:180px;margin-left:auto">
+  </div>
+  <div class="filter-bar" style="margin-top:-6px">
+    <span class="filter-label"><i class="ti ti-user" style="margin-right:4px"></i>Verantwoordelijke:</span>
+    <div class="pills" id="pills-assigned"></div>
+    <span class="filter-label" style="margin-left:10px"><i class="ti ti-arrows-sort" style="margin-right:4px"></i>Sorteren:</span>
+    <select id="tkt-sort" onchange="renderTickets()" style="width:auto;font-size:12px;padding:4px 8px">
+      <option value="datum-desc">Datum ↓ (nieuwste)</option>
+      <option value="datum-asc">Datum ↑ (oudste)</option>
+      <option value="prio-desc">Prioriteit ↓</option>
+      <option value="assigned-asc">Verantwoordelijke A→Z</option>
+    </select>
   </div>
   <div class="ticket-hdr">
-    <span>#</span><span>Onderwerp / Klant</span><span>Status</span><span>Prioriteit</span><span>Toegewezen</span><span>Datum</span><span></span>
+    <span>#</span><span>Onderwerp / Klant</span><span>Status</span><span>Prioriteit</span>
+    <span style="cursor:pointer" onclick="cycleSortAssigned()">Toegewezen <i class="ti ti-selector" style="font-size:10px"></i></span>
+    <span>Datum</span><span></span>
   </div>
   <div id="ticket-list"></div>
+</div>
+
+<!-- OPGELOST PANE -->
+<div id="pane-opgelost" class="page" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:1.25rem">
+    <div>
+      <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Opgeloste Tickets</div>
+      <div style="font-size:12px;color:var(--tx2);margin-top:3px">Tickets met status Opgelost of Gesloten</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input id="opgelost-search" type="text" placeholder="Zoeken..." oninput="renderOpgelost()" style="max-width:200px">
+    </div>
+  </div>
+  <div class="filter-bar">
+    <span class="filter-label"><i class="ti ti-user" style="margin-right:4px"></i>Verantwoordelijke:</span>
+    <div class="pills" id="pills-opgelost-assigned"></div>
+    <span class="filter-label" style="margin-left:10px"><i class="ti ti-arrows-sort" style="margin-right:4px"></i>Sorteren:</span>
+    <select id="opgelost-sort" onchange="renderOpgelost()" style="width:auto;font-size:12px;padding:4px 8px">
+      <option value="datum-desc">Datum ↓ (nieuwste)</option>
+      <option value="datum-asc">Datum ↑ (oudste)</option>
+      <option value="assigned-asc">Verantwoordelijke A→Z</option>
+    </select>
+  </div>
+  <div class="ticket-hdr">
+    <span>#</span><span>Onderwerp / Klant</span><span>Status</span><span>Prioriteit</span><span>Toegewezen</span><span>Datum opgelost</span><span></span>
+  </div>
+  <div id="opgelost-list"></div>
 </div>
 
 <!-- AGENDA PANE -->
@@ -584,6 +625,7 @@ let mailConfig = {};
 let activeTab = 'tickets';
 let filterStatus = 'Alle';
 let filterPrio = 'Alle';
+let filterAssigned = 'Alle';
 let agendaYear, agendaMonth;
 let agendaSelDag = null;
 let editingTicketId = null;
@@ -777,6 +819,7 @@ function showTab(tab) {
   const pane = document.getElementById('pane-' + tab);
   if (pane) pane.style.display = 'block';
   if (tab === 'tickets') renderTickets();
+  if (tab === 'opgelost') renderOpgelost();
   if (tab === 'agenda') renderAgenda();
   if (tab === 'mail') renderMail();
   if (tab === 'instellingen') renderSettingsPage();
@@ -845,7 +888,8 @@ function renderTickets() {
 
   // Filter pills status
   const pillsStatus = document.getElementById('pills-status');
-  pillsStatus.innerHTML = ['Alle', ...STATUSSEN].map(s =>
+  const actieveStatussen = STATUSSEN.filter(s => !['Opgelost','Gesloten'].includes(s));
+  pillsStatus.innerHTML = ['Alle', ...actieveStatussen].map(s =>
     '<button class="pill' + (filterStatus === s ? ' active' : '') + '" onclick="setFilterStatus(\'' + s + '\')">' + s + '</button>'
   ).join('');
 
@@ -855,10 +899,21 @@ function renderTickets() {
     '<button class="pill' + (filterPrio === p ? ' active' : '') + '" onclick="setFilterPrio(\'' + p + '\')">' + p + '</button>'
   ).join('');
 
+  // Pills verantwoordelijke (alleen actieve tickets)
+  const alleAssigned = ['Alle', ...new Set(tickets.filter(t => !['Opgelost','Gesloten'].includes(t.status) && t.assigned).map(t => t.assigned))];
+  const pillsAssigned = document.getElementById('pills-assigned');
+  if (pillsAssigned) pillsAssigned.innerHTML = alleAssigned.map(a =>
+    '<button class="pill' + (filterAssigned === a ? ' active' : '') + '" onclick="setFilterAssigned(\'' + a.replace(/'/g,"\\'") + '\')">' + a + '</button>'
+  ).join('');
+
   const q = (document.getElementById('tkt-search')?.value || '').toLowerCase();
+  const sortVal = document.getElementById('tkt-sort')?.value || 'datum-desc';
+  const PRIO_ORDER = { 'Urgent': 0, 'Hoog': 1, 'Normaal': 2, 'Laag': 3 };
   let list = tickets.filter(t => {
+    if (['Opgelost','Gesloten'].includes(t.status)) return false;
     if (filterStatus !== 'Alle' && t.status !== filterStatus) return false;
     if (filterPrio !== 'Alle' && t.prioriteit !== filterPrio) return false;
+    if (filterAssigned !== 'Alle' && (t.assigned || '') !== filterAssigned) return false;
     if (q && !(
       (t.onderwerp || '').toLowerCase().includes(q) ||
       (t.klant || '').toLowerCase().includes(q) ||
@@ -872,7 +927,15 @@ function renderTickets() {
     el.innerHTML = '<div class="empty-state"><i class="ti ti-ticket"></i>Geen tickets gevonden.</div>';
     return;
   }
-  el.innerHTML = list.map(t => {
+  // Sorteren
+  list.sort((a, b) => {
+    if (sortVal === 'datum-asc')    return (a.aangemaakt||'').localeCompare(b.aangemaakt||'');
+    if (sortVal === 'prio-desc')    return ((PRIO_ORDER||{})[a.prioriteit]||99) - ((PRIO_ORDER||{})[b.prioriteit]||99);
+    if (sortVal === 'assigned-asc') return (a.assigned||'').localeCompare(b.assigned||'');
+    return (b.aangemaakt||b.created_at||'').localeCompare(a.aangemaakt||a.created_at||'');
+  });
+
+    el.innerHTML = list.map(t => {
     const int = t.linkedInterventieId ? interventies.find(i => i.id === t.linkedInterventieId) : null;
     return '<div class="ticket-row" onclick="openTicketModal(\'' + t.id + '\')">' +
       '<span class="ticket-nr">' + tktNr(t) + '</span>' +
@@ -884,7 +947,68 @@ function renderTickets() {
       '<button class="btn sm" onclick="event.stopPropagation();openTicketModal(\'' + t.id + '\')"><i class="ti ti-edit"></i></button>' +
       '</div>';
   }).join('');
+
+  // Opgelost badge bijwerken
+  const opgelostCount = tickets.filter(t => ['Opgelost','Gesloten'].includes(t.status)).length;
+  const badge = document.getElementById('opgelost-badge');
+  if (badge) { if (opgelostCount) { badge.textContent = opgelostCount; badge.style.display = 'inline'; } else { badge.style.display = 'none'; } }
 }
+
+let filterOpgelostAssigned = 'Alle';
+
+function renderOpgelost() {
+  const alleAssigned = ['Alle', ...new Set(tickets.filter(t => ['Opgelost','Gesloten'].includes(t.status) && t.assigned).map(t => t.assigned))];
+  const pillsEl = document.getElementById('pills-opgelost-assigned');
+  if (pillsEl) pillsEl.innerHTML = alleAssigned.map(a =>
+    '<button class="pill' + (filterOpgelostAssigned === a ? ' active' : '') + '" onclick="setFilterOpgelostAssigned(\'' + a.replace(/'/g,"\\'") + '\')">' + a + '</button>'
+  ).join('');
+
+  const q = (document.getElementById('opgelost-search')?.value || '').toLowerCase();
+  const sortVal = document.getElementById('opgelost-sort')?.value || 'datum-desc';
+
+  let list = tickets.filter(t => {
+    if (!['Opgelost','Gesloten'].includes(t.status)) return false;
+    if (filterOpgelostAssigned !== 'Alle' && (t.assigned || '') !== filterOpgelostAssigned) return false;
+    if (q && !(
+      (t.onderwerp || '').toLowerCase().includes(q) ||
+      (t.klant || '').toLowerCase().includes(q) ||
+      tktNr(t).toLowerCase().includes(q)
+    )) return false;
+    return true;
+  });
+
+  list.sort((a, b) => {
+    if (sortVal === 'datum-asc')    return (a.aangemaakt||'').localeCompare(b.aangemaakt||'');
+    if (sortVal === 'assigned-asc') return (a.assigned||'').localeCompare(b.assigned||'');
+    return (b.aangemaakt||b.created_at||'').localeCompare(a.aangemaakt||a.created_at||'');
+  });
+
+  const el = document.getElementById('opgelost-list');
+  if (!el) return;
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state"><i class="ti ti-circle-check"></i>Nog geen opgeloste tickets.</div>';
+    return;
+  }
+  el.innerHTML = list.map(t =>
+    '<div class="ticket-row" onclick="openTicketModal(\'' + t.id + '\')" style="opacity:.85">' +
+    '<span class="ticket-nr">' + tktNr(t) + '</span>' +
+    '<div><div class="ticket-titel">' + (t.onderwerp || '—') + '</div><div class="ticket-klant">' + (t.klant || '') + '</div></div>' +
+    '<div>' + statusBadge(t.status) + '</div>' +
+    '<div>' + prioBadge(t.prioriteit) + '</div>' +
+    '<div style="font-size:12px;color:var(--tx2)">' + (t.assigned || '—') + '</div>' +
+    '<div style="font-size:11px;color:var(--tx3)">' + fmtDate(t.created_at || t.aangemaakt) + '</div>' +
+    '<button class="btn sm" onclick="event.stopPropagation();openTicketModal(\'' + t.id + '\')" ><i class="ti ti-edit"></i></button>' +
+    '</div>'
+  ).join('');
+}
+
+function setFilterAssigned(a) { filterAssigned = a; renderTickets(); }
+function setFilterOpgelostAssigned(a) { filterOpgelostAssigned = a; renderOpgelost(); }
+function cycleSortAssigned() {
+  const s = document.getElementById('tkt-sort');
+  if (s) { s.value = s.value === 'assigned-asc' ? 'datum-desc' : 'assigned-asc'; renderTickets(); }
+}
+
 
 function setFilterStatus(s) { filterStatus = s; renderTickets(); }
 function setFilterPrio(p) { filterPrio = p; renderTickets(); }
