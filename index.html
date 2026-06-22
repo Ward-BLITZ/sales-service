@@ -1123,12 +1123,10 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 
   <!-- MEDEWERKERS -->
   <div style="background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:1.5rem;margin-bottom:1.5rem">
-    <div style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;margin-bottom:1rem"><i class="ti ti-users" style="color:var(--green);margin-right:8px"></i>Techniekers / Medewerkers</div>
+    <div style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;margin-bottom:4px"><i class="ti ti-users" style="color:var(--green);margin-right:8px"></i>Medewerkers</div>
+    <div style="font-size:12px;color:var(--tx2);margin-bottom:1rem">Koppel naam, e-mailadres en rol aan elke medewerker. De rol bepaalt welke tabs zichtbaar zijn na inloggen.</div>
     <div id="techniekers-list" style="margin-bottom:12px"></div>
-    <div style="display:flex;gap:8px">
-      <input id="new-techniker" placeholder="Naam techniker..." style="max-width:280px">
-      <button class="btn primary" onclick="addTechniker()"><i class="ti ti-plus"></i> Toevoegen</button>
-    </div>
+    <button class="btn primary" onclick="addMedewerker()"><i class="ti ti-plus"></i> Medewerker toevoegen</button>
   </div>
 
   <!-- SUPABASE SQL HULP -->
@@ -2532,51 +2530,126 @@ function prefillOutlook() {
 }
 
 function renderTechniekers() {
-  const el = document.getElementById('techniekers-list');
+  var el = document.getElementById('techniekers-list');
   if (!el) return;
-  if (!techniekers.length) { el.innerHTML = '<div style="font-size:12px;color:var(--tx3)">Nog geen techniekers toegevoegd.</div>'; return; }
-  el.innerHTML = techniekers.map((t, i) =>
-    '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-radius:var(--r);margin-bottom:6px" id="tech-row-' + i + '">' +
-    '<span class="tech-naam" id="tech-naam-' + i + '" style="flex:1;font-size:13px">' + t + '</span>' +
-    '<input class="tech-edit-input" id="tech-input-' + i + '" value="' + t.replace(/"/g, '&quot;') + '" style="flex:1;display:none;font-size:13px" data-idx="' + i + '">' +
-    '<button class="btn sm" onclick="startTechnikerEdit(' + i + ')" id="tech-edit-btn-' + i + '" title="Naam bewerken"><i class="ti ti-pencil"></i></button>' +
-    '<button class="btn sm primary" onclick="saveTechnikerEdit(' + i + ')" id="tech-save-btn-' + i + '" style="display:none"><i class="ti ti-check"></i></button>' +
-    '<button class="btn sm danger" onclick="removeTechniker(' + i + ')"><i class="ti ti-trash"></i></button>' +
-    '</div>'
-  ).join('');
+  if (!techniekers.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--tx3)">Nog geen medewerkers toegevoegd.</div>';
+    return;
+  }
+  // Migratie: als techniekers nog strings zijn, converteer naar objecten
+  techniekers = techniekers.map(function(t) {
+    if (typeof t === 'string') return {naam: t, email: '', rol: 'operator'};
+    return t;
+  });
+
+  el.innerHTML = techniekers.map(function(m, i) {
+    var isAdmin = m.email && m.email === ADMIN_EMAIL;
+    return '<div style="display:grid;grid-template-columns:1fr 180px 130px 80px;gap:8px;align-items:center;padding:10px 12px;background:var(--bg2);border-radius:var(--r);margin-bottom:8px' + (isAdmin ? ';border-left:3px solid #f59e0b' : '') + '">' +
+      // Naam
+      '<div><div style="font-size:11px;color:var(--tx3);margin-bottom:3px">Naam</div>' +
+      '<input value="' + (m.naam||'').replace(/"/g,'&quot;') + '" style="font-size:13px;font-weight:500;width:100%" onchange="updateMedewerker(' + i + ','naam',this.value)"></div>' +
+      // Email
+      '<div><div style="font-size:11px;color:var(--tx3);margin-bottom:3px">E-mailadres</div>' +
+      '<input value="' + (m.email||'').replace(/"/g,'&quot;') + '" type="email" style="font-size:12px;width:100%" placeholder="naam@blitzpower.be" onchange="updateMedewerker(' + i + ','email',this.value)"></div>' +
+      // Rol
+      '<div><div style="font-size:11px;color:var(--tx3);margin-bottom:3px">Rol</div>' +
+      (isAdmin
+        ? '<span style="font-size:12px;font-weight:700;color:#92400e;padding:5px 10px;background:rgba(245,158,11,.15);border-radius:20px;display:inline-block">Admin (vast)</span>'
+        : '<select style="font-size:12px;width:100%;padding:5px 8px;border-radius:var(--r);border:1px solid var(--bd);background:var(--bg);color:var(--tx)" onchange="updateMedewerkerRol(' + i + ',this.value)">' +
+          '<option value="operator"' + (m.rol === 'operator' ? ' selected' : '') + '>Operator</option>' +
+          '<option value="manager"' + (m.rol === 'manager' ? ' selected' : '') + '>Manager</option>' +
+          '</select>'
+      ) +
+      '</div>' +
+      // Verwijder knop
+      '<div style="text-align:right">' +
+      '<button class="btn sm danger" onclick="removeMedewerker(' + i + ')"><i class="ti ti-trash"></i></button>' +
+      '</div>' +
+      '</div>';
+  }).join('');
 }
 
-function startTechnikerEdit(i) {
-  document.getElementById('tech-naam-' + i).style.display = 'none';
-  const inp = document.getElementById('tech-input-' + i);
-  inp.style.display = 'block';
-  document.getElementById('tech-edit-btn-' + i).style.display = 'none';
-  document.getElementById('tech-save-btn-' + i).style.display = 'inline-flex';
-  inp.focus();
-  inp.onkeydown = function(e) { if (e.key === 'Enter') saveTechnikerEdit(i); };
+function updateMedewerker(i, field, val) {
+  if (typeof techniekers[i] === 'string') techniekers[i] = {naam: techniekers[i], email: '', rol: 'operator'};
+  techniekers[i][field] = val;
+  saveMedewerkers();
 }
 
-function saveTechnikerEdit(i) {
-  const val = document.getElementById('tech-input-' + i)?.value?.trim();
-  if (!val) { showToast('Naam mag niet leeg zijn.'); return; }
-  const old = techniekers[i];
-  techniekers[i] = val;
-  // Update ook alle tickets en interventies die deze techniker hadden
-  tickets.forEach(t => { if (t.assigned === old) t.assigned = val; });
-  interventies.forEach(iv => { if (iv.techniker === old) iv.techniker = val; });
+async function updateMedewerkerRol(i, newRol) {
+  if (typeof techniekers[i] === 'string') techniekers[i] = {naam: techniekers[i], email: '', rol: 'operator'};
+  techniekers[i].rol = newRol;
+  saveMedewerkers();
+
+  // Sync ook naar Supabase Auth als email bekend is
+  var email = techniekers[i].email;
+  if (!email) { showToast('Rol opgeslagen. Voeg een e-mailadres toe om de rol ook in Supabase te synchroniseren.'); return; }
+
+  // Zoek user in allUsers op email
+  var supaUser = allUsers.find(function(u){ return u.email === email; });
+  if (supaUser) {
+    try {
+      var res = await fetch(SB_URL + '/auth/v1/admin/users/' + supaUser.id, {
+        method: 'PATCH',
+        headers: {'apikey': SB_SERVICE, 'Authorization': 'Bearer ' + SB_SERVICE, 'Content-Type': 'application/json'},
+        body: JSON.stringify({user_metadata: Object.assign({}, supaUser.user_metadata, {role: newRol, name: techniekers[i].naam})})
+      });
+      if (res.ok) {
+        supaUser.user_metadata = Object.assign({}, supaUser.user_metadata, {role: newRol});
+        showToast((techniekers[i].naam || email) + ' -> ' + newRol + ' (gesynchroniseerd)');
+      } else {
+        showToast('Rol lokaal opgeslagen. Supabase sync mislukt (probeer via Gebruikers tab).');
+      }
+    } catch(e) {
+      showToast('Rol lokaal opgeslagen. ' + e.message);
+    }
+  } else {
+    showToast('Rol opgeslagen. Gebruiker (' + email + ') nog niet gevonden in Supabase — heeft deze persoon al ingelogd?');
+  }
+}
+
+function saveMedewerkers() {
+  saveSettings();
+  fillTechnikerSelects();
+}
+
+function addMedewerker() {
+  techniekers.push({naam: '', email: '', rol: 'operator'});
+  saveSettings();
+  renderTechniekers();
+  // Focus op het naam-veld van de nieuwe rij
+  setTimeout(function() {
+    var inputs = document.querySelectorAll('#techniekers-list input');
+    if (inputs.length) inputs[inputs.length - 2].focus();
+  }, 100);
+}
+
+function removeMedewerker(i) {
+  var naam = typeof techniekers[i] === 'string' ? techniekers[i] : techniekers[i].naam;
+  if (!confirm('Verwijder ' + naam + '?')) return;
+  techniekers.splice(i, 1);
+  saveSettings();
   renderTechniekers();
   fillTechnikerSelects();
-  saveSettings();
-  showToast('Naam bijgewerkt naar "' + val + '".');
+  showToast('Medewerker verwijderd.');
 }
 
+// Oud compat
+function addTechniker() { addMedewerker(); }
+function removeTechniker(i) { removeMedewerker(i); }
+function startTechnikerEdit(i) {}
+function saveTechnikerEdit(i) {}
+
 function fillTechnikerSelects() {
-  ['tkt-assigned', 'int-techniker'].forEach(id => {
-    const el = document.getElementById(id);
+  ['tkt-assigned', 'int-techniker'].forEach(function(id) {
+    var el = document.getElementById(id);
     if (!el) return;
-    const cur = el.value;
-    el.innerHTML = '<option value="">— ' + (id === 'tkt-assigned' ? 'Niet toegewezen' : 'Selecteer techniker') + ' —</option>' +
-      techniekers.map(tk => '<option value="' + tk + '"' + (cur === tk ? ' selected' : '') + '>' + tk + '</option>').join('');
+    var cur = el.value;
+    var placeholder = id === 'tkt-assigned' ? 'Niet toegewezen' : 'Selecteer techniker';
+    el.innerHTML = '<option value="">— ' + placeholder + ' —</option>' +
+      techniekers.map(function(m) {
+        var naam = typeof m === 'string' ? m : (m.naam || '');
+        return '<option value="' + naam + '"' + (cur === naam ? ' selected' : '') + '>' + naam + '</option>';
+      }).join('');
   });
 }
 
@@ -2636,9 +2709,20 @@ async function detectRole() {
     badge.style.background = isAdmin ? 'rgba(245,158,11,.2)' : (isManager ? 'rgba(0,223,163,.15)' : 'rgba(180,180,180,.15)');
     badge.style.color = isAdmin ? '#92400e' : (isManager ? 'var(--green)' : 'var(--tx3)');
   }
+  // Check ook lokale medewerkers-lijst voor rol (fallback als Supabase metadata leeg)
+  if (!isManager && !isAdmin && user && user.email) {
+    var localMed = techniekers.find(function(m) {
+      return (typeof m === 'object') && m.email && m.email.toLowerCase() === user.email.toLowerCase();
+    });
+    if (localMed && localMed.rol === 'manager') {
+      currentRole = 'manager';
+      isManager = true;
+    }
+  }
+
   // Toon/verberg tabs met inline style (overschrijft CSS class)
   document.querySelectorAll('.manager-only').forEach(function(el) {
-    el.style.display = isManager ? 'inline-flex' : 'none';
+    el.style.display = (currentRole === 'manager') ? 'inline-flex' : 'none';
   });
   document.querySelectorAll('.admin-only').forEach(function(el) {
     el.style.display = isAdmin ? 'inline-flex' : 'none';
