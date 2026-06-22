@@ -3655,14 +3655,14 @@ function renderAgendaWeek() {
         return vanH < uurNum && totH > uurNum;
       });
 
-      html += '<div class="week-cell' + (isToday?' today-col':'') + '" onclick="openInterventieModal(null,'' + ds + '')">';
+      html += '<div class="week-cell' + (isToday?' today-col':'') + '" onclick="openInterventieModal(null,\'' + ds + '\')">';
 
       intsInSlot.forEach(function(iv) {
         var kleur = tkKleurMap[iv.techniker] || '#00DFA3';
         var textK = (kleur==='#00DFA3'||kleur==='#f59e0b') ? '#1D252D' : '#fff';
         var durH = iv.tot ? parseInt(iv.tot.split(':')[0]) - parseInt(iv.van.split(':')[0]) : 1;
         var hasSR = !!iv.sr;
-        html += '<div class="week-event" onclick="event.stopPropagation();openInterventieModal('' + iv.id + '',null)" style="background:' + kleur + ';color:' + textK + '" title="' + (iv.titel||'') + ' (' + (iv.van||'') + (iv.tot?' - '+iv.tot:'') + ') — ' + (iv.techniker||'') + '">' +
+        html += '<div class="week-event" onclick="event.stopPropagation();openInterventieModal(\'' + iv.id + '\',null)" style="background:' + kleur + ';color:' + textK + '" title="' + (iv.titel||'') + ' (' + (iv.van||'') + (iv.tot?' - '+iv.tot:'') + ') - ' + (iv.techniker||'') + '">' +
           '<span style="opacity:.75;font-size:9px">' + (iv.van||'') + (iv.tot?' – '+iv.tot:'') + '</span> ' +
           (iv.titel||'') +
           (iv.techniker ? '<br><span style="opacity:.8;font-size:9px">' + iv.techniker + '</span>' : '') +
