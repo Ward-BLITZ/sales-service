@@ -106,7 +106,14 @@ function renderSettingsPage() {
     // Ook SQL voor service_projecten tonen
     const sqlEl = inst.querySelector('pre');
     if (sqlEl && !sqlEl.textContent.includes('service_projecten')) {
-      sqlEl.textContent += '\nCREATE TABLE IF NOT EXISTS service_projecten (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  data jsonb NOT NULL,\n  created_at timestamptz DEFAULT now()\n);\nALTER TABLE service_projecten ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "allow all" ON service_projecten FOR ALL USING (true) WITH CHECK (true);';
+      sqlEl.textContent += '
+CREATE TABLE IF NOT EXISTS service_projecten (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  data jsonb NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE service_projecten ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow all" ON service_projecten FOR ALL USING (true) WITH CHECK (true);';
     }
   }
 }
@@ -1132,7 +1139,7 @@ const SB_URL = 'https://rhztaqutznafsgprnkvn.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoenRhcXV0em5hZnNncHJua3ZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2OTI2MjYsImV4cCI6MjA5NzI2ODYyNn0.n-ojVvnlm8x-g-O6WNoN8un67oR-yHMSlaJVuh_8caI';
 const SB_SERVICE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoenRhcXV0em5hZnNncHJua3ZuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTY5MjYyNiwiZXhwIjoyMDk3MjY4NjI2fQ.Il_MMzOFoUDqmjp5Fm8M120CGswwGtNDnOo-b1iooEs';
 const ADMIN_EMAIL = 'sales@blitzpower.com'; // Hoofdadmin — altijd manager
-let sbAdmin = false; // true wanneer ingelogd als admin
+let sbAdmin = null; // wordt gezet na login met service role key
 
 let sb = null;
 let currentUser = null;
@@ -2425,8 +2432,15 @@ async function detectRole() {
   const role = isAdmin ? 'manager' : metaRole;
   currentRole = role;
   const isManager = role === 'manager';
-  // sbAdmin = true als admin (we gebruiken directe fetch, geen tweede createClient!)
-  if (isAdmin) sbAdmin = true;
+
+  // sbAdmin client aanmaken (voor gebruikersbeheer) — enkel voor manager
+  if (isManager && !sbAdmin) {
+    try {
+      sbAdmin = supabase.createClient(SB_URL, SB_SERVICE, {
+        auth: { autoRefreshToken: false, persistSession: false }
+      });
+    } catch(e) {}
+  }
 
   const badge = document.getElementById('role-badge');
   if (badge) {
@@ -2493,7 +2507,14 @@ function renderSettingsPage() {
     // Ook SQL voor service_projecten tonen
     const sqlEl = inst.querySelector('pre');
     if (sqlEl && !sqlEl.textContent.includes('service_projecten')) {
-      sqlEl.textContent += '\nCREATE TABLE IF NOT EXISTS service_projecten (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  data jsonb NOT NULL,\n  created_at timestamptz DEFAULT now()\n);\nALTER TABLE service_projecten ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "allow all" ON service_projecten FOR ALL USING (true) WITH CHECK (true);';
+      sqlEl.textContent += '
+CREATE TABLE IF NOT EXISTS service_projecten (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  data jsonb NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE service_projecten ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow all" ON service_projecten FOR ALL USING (true) WITH CHECK (true);';
     }
   }
 }
@@ -3169,16 +3190,17 @@ let allUsers = [];
 
 async function loadGebruikers() {
   if (currentUser?.email !== ADMIN_EMAIL) return;
+  if (!sbAdmin) {
+    showGebruikersError('Admin client niet beschikbaar. Ververs de pagina.');
+    return;
+  }
   document.getElementById('gebruikers-loading').style.display = 'block';
   document.getElementById('gebruikers-error').style.display = 'none';
   document.getElementById('gebruikers-list').innerHTML = '';
 
   try {
-    const res = await fetch(SB_URL + '/auth/v1/admin/users?per_page=100', {
-      headers: { 'apikey': SB_SERVICE, 'Authorization': 'Bearer ' + SB_SERVICE }
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
-    const data = await res.json();
+    const { data, error } = await sbAdmin.auth.admin.listUsers({ perPage: 100 });
+    if (error) throw error;
     allUsers = data.users || [];
     renderGebruikers();
   } catch(e) {
@@ -3269,12 +3291,10 @@ async function updateUserRol(userId, selectEl) {
   selectEl.className = 'role-select-inline role-' + newRol;
 
   try {
-    const res = await fetch(SB_URL + '/auth/v1/admin/users/' + userId, {
-      method: 'PUT',
-      headers: { 'apikey': SB_SERVICE, 'Authorization': 'Bearer ' + SB_SERVICE, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_metadata: { ...u.user_metadata, role: newRol } })
+    const { error } = await sbAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: { ...u.user_metadata, role: newRol }
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
+    if (error) throw error;
     // Update lokaal
     u.user_metadata = { ...u.user_metadata, role: newRol };
     showToast('Rol bijgewerkt: ' + (u.user_metadata?.name || u.email) + ' → ' + newRol + ' ✓');
@@ -3287,7 +3307,7 @@ async function updateUserRol(userId, selectEl) {
 }
 
 async function nodigUitGebruiker() {
-  if (currentUser?.email !== ADMIN_EMAIL) { showToast('Geen toegang.'); return; }
+  if (!sbAdmin) { showToast('Admin client niet beschikbaar.'); return; }
   const email = document.getElementById('nieuw-user-email').value.trim();
   const naam = document.getElementById('nieuw-user-naam').value.trim();
   const rol = document.getElementById('nieuw-user-rol').value;
@@ -3298,13 +3318,10 @@ async function nodigUitGebruiker() {
   resultEl.style.color = 'var(--tx2)';
 
   try {
-    const res = await fetch(SB_URL + '/auth/v1/invite', {
-      method: 'POST',
-      headers: { 'apikey': SB_SERVICE, 'Authorization': 'Bearer ' + SB_SERVICE, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, data: { name: naam || email.split('@')[0], role: rol } })
+    const { data, error } = await sbAdmin.auth.admin.inviteUserByEmail(email, {
+      data: { name: naam || email.split('@')[0], role: rol }
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
-    const data = await res.json();
+    if (error) throw error;
     resultEl.innerHTML = '<span style="color:var(--green)"><i class="ti ti-check"></i> Uitnodiging verstuurd naar ' + escHtml(email) + ' als ' + rol + '</span>';
     document.getElementById('nieuw-user-email').value = '';
     document.getElementById('nieuw-user-naam').value = '';
