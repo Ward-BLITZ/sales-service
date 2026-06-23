@@ -671,19 +671,14 @@ function getWeekStart(offset) {
 
 
 
-// Overschrijf agendaPrev/Next om week-mode te respecteren
-var _origAgendaPrev = agendaPrev;
-var _origAgendaNext = agendaNext;
-agendaPrev = function() { if (agendaView === 'week') { agendaWeekOffset--; renderAgendaWeek(); } else { _origAgendaPrev(); } };
-agendaNext = function() { if (agendaView === 'week') { agendaWeekOffset++; renderAgendaWeek(); } else { _origAgendaNext(); } };
-
-// Overschrijf showTab agenda om goede view te tonen
-var _origShowTabAgenda = showTab;
-showTab = function(tab) {
-  _origShowTabAgenda(tab);
-  if (tab === 'agenda' && agendaView === 'week') {
-    setTimeout(renderAgendaWeek, 50);
-  }
+// agendaPrev/Next week-mode bewust
+agendaPrev = function() {
+  if (agendaView === 'week') { agendaWeekOffset--; renderAgendaWeek(); }
+  else { agendaMonth--; if (agendaMonth < 0) { agendaMonth = 11; agendaYear--; } renderAgenda(); }
+};
+agendaNext = function() {
+  if (agendaView === 'week') { agendaWeekOffset++; renderAgendaWeek(); }
+  else { agendaMonth++; if (agendaMonth > 11) { agendaMonth = 0; agendaYear++; } renderAgenda(); }
 };
 
 // ═══════════════════════════════════════════════
@@ -1786,7 +1781,7 @@ function showTab(tab) {
   if (pane) pane.style.display = 'block';
   if (tab === 'tickets') renderTickets();
   if (tab === 'opgelost') renderOpgelost();
-  if (tab === 'agenda') renderAgenda();
+  if (tab === 'agenda') { if (agendaView === 'week') renderAgendaWeek(); else renderAgenda(); }
   if (tab === 'mail') renderMail();
   if (tab === 'instellingen') renderSettingsPage();
 }
@@ -3810,17 +3805,9 @@ function renderAgendaWeek() {
   renderAgendaAankomend();
 }
 
-// Overschrijf agendaPrev/Next om week-mode te respecteren
-agendaPrev = function() { if (agendaView === 'week') { agendaWeekOffset--; renderAgendaWeek(); } else { _origAgendaPrev(); } };
-agendaNext = function() { if (agendaView === 'week') { agendaWeekOffset++; renderAgendaWeek(); } else { _origAgendaNext(); } };
 
-// Overschrijf showTab agenda om goede view te tonen
-showTab = function(tab) {
-  _origShowTabAgenda(tab);
-  if (tab === 'agenda' && agendaView === 'week') {
-    setTimeout(renderAgendaWeek, 50);
-  }
-};
+
+
 
 // ═══════════════════════════════════════════════
 // WEEKPLAN VERBETERING — klik om blok te selecteren uit menu
