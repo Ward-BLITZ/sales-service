@@ -962,10 +962,10 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 .modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:1rem;border-top:1px solid var(--bd);padding-top:1rem}
 /* AGENDA */
 .agenda-layout{display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start}
-.agenda-layout.week-view{display:block}
+.agenda-layout.week-view{display:flex;flex-direction:column}
 .agenda-layout.week-view .agenda-sidebar{display:none}
 .agenda-main{background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;min-height:500px}
-.agenda-layout.week-view .agenda-main{overflow-x:auto;width:100%}
+.agenda-layout.week-view .agenda-main{width:100%;overflow:hidden}
 .agenda-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--bd)}
 .agenda-nav-title{font-family:'Poppins',sans-serif;font-size:15px;font-weight:700}
 .agenda-nav-btn{background:none;border:none;cursor:pointer;color:var(--tx2);padding:6px 10px;border-radius:var(--r);font-size:16px}
@@ -1121,7 +1121,7 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 .role-select-inline.role-andere_afdeling{border-color:#ef4444;background:rgba(239,68,68,.08);color:#ef4444}
 
 /* WEEK VIEW */
-.week-grid{display:grid;grid-template-columns:52px repeat(7,minmax(0,1fr));border-top:1px solid var(--bd);border-left:1px solid var(--bd);width:100%}
+.week-grid{display:grid;grid-template-columns:52px repeat(7,1fr);border-top:1px solid var(--bd);border-left:1px solid var(--bd);width:100%;box-sizing:border-box}
 .week-time-cell{border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);padding:4px 6px;font-size:10px;color:var(--tx3);font-weight:600;background:var(--bg2);text-align:right;white-space:nowrap;min-height:52px;display:flex;align-items:flex-start;justify-content:flex-end}
 .week-day-hdr{border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);padding:8px 4px;text-align:center;background:var(--bg2);position:sticky;top:0;z-index:2;overflow:hidden}
 .week-cell{border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);min-height:52px;padding:2px 3px;position:relative;cursor:pointer;transition:background .1s;overflow:hidden}
@@ -1129,8 +1129,7 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 .week-cell.today-col{background:rgba(0,223,163,.03)}
 .week-event{font-size:11px;font-weight:700;padding:3px 6px;border-radius:4px;margin-bottom:2px;cursor:pointer;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .week-event:hover{filter:brightness(.92)}
-.agenda-week-wrapper{overflow-y:auto;overflow-x:hidden;max-height:calc(100vh - 200px);width:100%}
-.week-grid{width:100%;table-layout:fixed}
+.agenda-week-wrapper{overflow-y:auto;overflow-x:hidden;max-height:calc(100vh - 200px);width:100%;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -4033,7 +4032,18 @@ function setAgendaView(view) {
   if (layout) layout.classList.toggle('week-view', view === 'week');
   // Pane agenda: in week-modus volledige breedte gebruiken
   var pane = document.getElementById('pane-agenda');
-  if (pane) { pane.style.maxWidth = view === 'week' ? 'none' : ''; pane.style.padding = view === 'week' ? '1rem 1.5rem' : ''; }
+  if (pane) { pane.style.maxWidth = 'none'; pane.style.padding = '1rem 1.5rem'; }
+  // Agenda-grid container: block in week mode, grid in month mode
+  var agendaGrid = document.getElementById('agenda-grid');
+  if (agendaGrid) {
+    if (view === 'week') {
+      agendaGrid.style.display = 'block';
+      agendaGrid.style.width = '100%';
+    } else {
+      agendaGrid.style.display = '';
+      agendaGrid.style.width = '';
+    }
+  }
   var prevBtn = document.querySelector('.agenda-nav-btn:first-child');
   var nextBtn = document.querySelector('.agenda-nav-btn:last-child');
   if (prevBtn) prevBtn.onclick = function() {
@@ -4061,6 +4071,12 @@ function getWeekStart(offset) {
 }
 
 function renderAgendaWeek() {
+  // Zet agenda-grid op block zodat de inner week-grid de volle breedte kan innemen
+  var agGrid = document.getElementById('agenda-grid');
+  if (agGrid) { agGrid.style.display = 'block'; agGrid.style.width = '100%'; }
+  // Zet agenda-main op overflow:visible zodat de grid niet afgeknipt wordt
+  var agMain = document.querySelector('.agenda-main');
+  if (agMain) { agMain.style.overflow = 'visible'; agMain.style.width = '100%'; }
   var lbl = document.getElementById('agenda-month-lbl');
   var mon = getWeekStart(agendaWeekOffset);
   var weekNr = getISOWeek(mon);
@@ -4084,7 +4100,7 @@ function renderAgendaWeek() {
   }
 
   var grid = document.getElementById('agenda-grid');
-  var html = '<div class="agenda-week-wrapper"><div class="week-grid">';
+  var html = '<div class="agenda-week-wrapper" style="width:100%;box-sizing:border-box"><div class="week-grid" style="display:grid;grid-template-columns:52px repeat(7,1fr);width:100%;box-sizing:border-box">';
 
   // Header
   html += '<div class="week-day-hdr" style="background:var(--bg2)"></div>';
