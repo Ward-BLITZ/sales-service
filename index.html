@@ -219,7 +219,7 @@ function renderTicketLog() {
 
   var tsel = document.getElementById('tl-filter-tech');
   if (tsel && tsel.options.length <= 1) {
-    techniekers.forEach(function(m) { var tk = typeof m === 'string' ? m : (m.naam || ''); if (!tk) return; var o = document.createElement('option'); o.value = tk; o.textContent = tk; tsel.appendChild(o); });
+    getAssignableNames().forEach(function(naam) { var o = document.createElement('option'); o.value = naam; o.textContent = naam; tsel.appendChild(o); });
   }
 
   var logs = getSRLogs().filter(function(l) {
@@ -579,7 +579,7 @@ function escHtml(s) {
 }
 
 async function loadGebruikers() {
-  if (currentUser && currentUser.email !== ADMIN_EMAIL) return;
+  if (currentRole !== 'manager' && (!currentUser || currentUser.email !== ADMIN_EMAIL)) return;
   var errEl = document.getElementById('gebruikers-error');
   if (errEl) errEl.style.display = 'none';
   var listEl = document.getElementById('gebruikers-list');
@@ -627,7 +627,7 @@ async function updateUserRol(userId, selectEl) {
 }
 
 async function nodigUitGebruiker() {
-  if (!currentUser || currentUser.email !== ADMIN_EMAIL) { showToast('Geen toegang.'); return; }
+  if (currentRole !== 'manager' && (!currentUser || currentUser.email !== ADMIN_EMAIL)) { showToast('Geen toegang.'); return; }
   var email = document.getElementById('nieuw-user-email').value.trim();
   var naam = document.getElementById('nieuw-user-naam').value.trim();
   var rol = document.getElementById('nieuw-user-rol').value;
@@ -1158,7 +1158,7 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
   <button class="tab-btn manager-only" id="tab-weekrapport" onclick="showTab('weekrapport')"><i class="ti ti-chart-bar"></i> Weekrapport</button>
   <button class="tab-btn manager-only" id="tab-kpi" onclick="showTab('kpi')"><i class="ti ti-dashboard"></i> KPI</button>
   <button class="tab-btn" id="tab-info" onclick="showTab('info')"><i class="ti ti-info-circle"></i> Info & Workflow</button>
-  <button class="tab-btn admin-only" id="tab-gebruikers" onclick="showTab('gebruikers')"><i class="ti ti-users-group"></i> Gebruikers</button>
+  <button class="tab-btn manager-only" id="tab-gebruikers" onclick="showTab('gebruikers')"><i class="ti ti-users-group"></i> Gebruikers</button>
   <button class="tab-btn" id="tab-instellingen" onclick="showTab('instellingen')"><i class="ti ti-settings"></i> Instellingen</button>
   <div class="tab-right">
     <span id="role-badge" style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;background:rgba(0,223,163,.15);color:var(--green);margin-right:6px;display:none"></span>
@@ -1336,14 +1336,6 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
       Configuratie wordt opgeslagen in Supabase (service_settings).
     </div>
     <button class="btn primary" onclick="saveMailConfig()"><i class="ti ti-check"></i> Opslaan</button>
-  </div>
-
-  <!-- MEDEWERKERS -->
-  <div style="background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:1.5rem;margin-bottom:1.5rem">
-    <div style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;margin-bottom:4px"><i class="ti ti-users" style="color:var(--green);margin-right:8px"></i>Medewerkers</div>
-    <div style="font-size:12px;color:var(--tx2);margin-bottom:1rem">Koppel naam, e-mailadres en rol aan elke medewerker. De rol bepaalt welke tabs zichtbaar zijn na inloggen.</div>
-    <div id="techniekers-list" style="margin-bottom:12px"></div>
-    <button class="btn primary" onclick="addMedewerker()"><i class="ti ti-plus"></i> Medewerker toevoegen</button>
   </div>
 
   <!-- SUPABASE SQL HULP -->
@@ -1659,6 +1651,8 @@ async function onLogin() {
 
 async function loadAll() {
   await Promise.all([loadTickets(), loadInterventies(), loadMails(), loadSettings(), loadKlanten(), loadProjecten()]);
+  // Laad gebruikers voor iedereen zodat namen beschikbaar zijn in alle selects
+  await loadGebruikers();
 }
 
 // ═══════════════════════════════════════════════
@@ -2004,7 +1998,7 @@ function openTicketModal(id) {
   // Assigned select
   const asel = document.getElementById('tkt-assigned');
   asel.innerHTML = '<option value="">— Niet toegewezen —</option>' +
-    techniekers.map(tk => '<option value="' + tk + '"' + (t && t.assigned === tk ? ' selected' : '') + '>' + tk + '</option>').join('');
+    getAssignableNames().map(function(naam) { return '<option value="' + naam + '"' + (t && t.assigned === naam ? ' selected' : '') + '>' + naam + '</option>'; }).join('');
 
   // Status flow
   renderTktStatusFlow(t ? t.status : 'Nieuw');
@@ -2280,7 +2274,7 @@ function openInterventieModal(id, prefillDatum) {
   // Techniker select
   const tsel = document.getElementById('int-techniker');
   tsel.innerHTML = '<option value="">— Selecteer techniker —</option>' +
-    techniekers.map(tk => '<option value="' + tk + '"' + (int && int.techniker === tk ? ' selected' : '') + '>' + tk + '</option>').join('');
+    getAssignableNames().map(function(naam) { return '<option value="' + naam + '"' + (int && int.techniker === naam ? ' selected' : '') + '>' + naam + '</option>'; }).join('');
 
   // Ticket link select
   const tksel = document.getElementById('int-ticket-link');
@@ -2414,14 +2408,9 @@ function renderTechFilterPills() {
   if (!el) return;
   const alleActief = agendaTechFilter.length === 0;
   const tkKleuren = ['#00DFA3','#3b82f6','#f59e0b','#ef4444','#8b5cf6'];
-  // Filter alleen operator/manager voor weergave in agenda
-  const visibleTechs = techniekers.filter(function(m) {
-    var rol = typeof m === 'string' ? 'operator' : (m.rol || 'operator');
-    return rol === 'operator' || rol === 'manager';
-  });
+  const visibleTechs = getAssignableNames();
   let html = '<button onclick="setAgendaTechFilter([])" style="font-family:Inter,sans-serif;font-size:12px;font-weight:' + (alleActief ? '700' : '500') + ';padding:5px 13px;border-radius:20px;cursor:pointer;border:1px solid var(--bd2);background:' + (alleActief ? 'var(--dark)' : 'var(--bg2)') + ';color:' + (alleActief ? '#fff' : 'var(--tx2)') + '">Alle</button>';
-  visibleTechs.forEach(function(m, idx) {
-    const tk = typeof m === 'string' ? m : (m.naam || '');
+  visibleTechs.forEach(function(tk, idx) {
     const kleur = tkKleuren[idx % tkKleuren.length];
     const actief = agendaTechFilter.includes(tk);
     const textKleur = (kleur === '#00DFA3' || kleur === '#f59e0b') ? '#1D252D' : '#fff';
@@ -2470,7 +2459,7 @@ function renderAgenda() {
 
   const tkKleuren = ['#00DFA3','#3b82f6','#f59e0b','#ef4444','#8b5cf6'];
   const tkKleurMap = {};
-  techniekers.forEach(function(m, idx) { var naam = typeof m === 'string' ? m : (m.naam || ''); tkKleurMap[naam] = tkKleuren[idx % tkKleuren.length]; });
+  getAssignableNames().forEach(function(naam, idx) { tkKleurMap[naam] = tkKleuren[idx % tkKleuren.length]; });
 
   const zichtbaar = getVisibleInterventies();
 
@@ -2869,20 +2858,63 @@ function removeTechniker(i) { removeMedewerker(i); }
 function startTechnikerEdit(i) {}
 function saveTechnikerEdit(i) {}
 
-function fillTechnikerSelects() {
-  // Enkel operator en manager mogen worden toegewezen aan tickets/interventies
-  var assignableTechs = techniekers.filter(function(m) {
-    var rol = typeof m === 'string' ? 'operator' : (m.rol || 'operator');
-    return rol === 'operator' || rol === 'manager';
+// Sync allUsers → techniekers array zodat namen beschikbaar zijn in alle selects
+function syncTechnikersFromUsers() {
+  if (!allUsers || !allUsers.length) return;
+  allUsers.forEach(function(u) {
+    if (!u.email || u.email === ADMIN_EMAIL) return; // admin apart behandelen
+    var rol = getRolLabel(u);
+    var naam = (u.user_metadata && u.user_metadata.name) ? u.user_metadata.name : u.email.split('@')[0];
+    // Check of al bestaat in techniekers
+    var existing = techniekers.find(function(m) {
+      return typeof m === 'object' && m.email && m.email.toLowerCase() === u.email.toLowerCase();
+    });
+    if (existing) {
+      // Update naam en rol vanuit Supabase
+      existing.naam = naam;
+      if (!existing.rol || existing.rol === 'operator') existing.rol = rol;
+    } else {
+      techniekers.push({naam: naam, email: u.email, rol: rol});
+    }
   });
+  // Verwijder techniekers die niet meer in allUsers staan (en niet handmatig toegevoegd zonder email)
+  techniekers = techniekers.filter(function(m) {
+    if (typeof m === 'string') return true; // oud formaat
+    if (!m.email) return true; // handmatig zonder email, bewaren
+    return allUsers.some(function(u) { return u.email && u.email.toLowerCase() === m.email.toLowerCase(); });
+  });
+}
+
+function getAssignableNames() {
+  // Primaire bron: allUsers (operator + manager); fallback: techniekers array
+  var names = [];
+  if (allUsers && allUsers.length) {
+    allUsers.forEach(function(u) {
+      var rol = getRolLabel(u);
+      if (rol !== 'operator' && rol !== 'manager') return;
+      var naam = (u.user_metadata && u.user_metadata.name) ? u.user_metadata.name : u.email.split('@')[0];
+      if (naam && !names.includes(naam)) names.push(naam);
+    });
+  }
+  // Aanvullen vanuit techniekers voor gebruikers zonder Supabase account
+  techniekers.forEach(function(m) {
+    var rol = typeof m === 'string' ? 'operator' : (m.rol || 'operator');
+    if (rol !== 'operator' && rol !== 'manager') return;
+    var naam = typeof m === 'string' ? m : (m.naam || '');
+    if (naam && !names.includes(naam)) names.push(naam);
+  });
+  return names.sort();
+}
+
+function fillTechnikerSelects() {
+  var names = getAssignableNames();
   ['tkt-assigned', 'int-techniker'].forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
     var cur = el.value;
     var placeholder = id === 'tkt-assigned' ? 'Niet toegewezen' : 'Selecteer techniker';
     el.innerHTML = '<option value="">— ' + placeholder + ' —</option>' +
-      assignableTechs.map(function(m) {
-        var naam = typeof m === 'string' ? m : (m.naam || '');
+      names.map(function(naam) {
         return '<option value="' + naam + '"' + (cur === naam ? ' selected' : '') + '>' + naam + '</option>';
       }).join('');
   });
@@ -3018,8 +3050,7 @@ async function saveWeekplanDB() {
 // PROJECTEN
 // ═══════════════════════════════════════════════
 function renderProjecten() {
-  var techNamen = techniekers.map(function(m) { return typeof m === 'string' ? m : (m.naam || ''); }).filter(Boolean);
-  var allTechs = ['Alle'].concat(techNamen);
+  var allTechs = ['Alle'].concat(getAssignableNames());
   var pillsTech = document.getElementById('pills-proj-tech');
   if (pillsTech) {
     pillsTech.innerHTML = allTechs.map(function(t) {
@@ -3295,7 +3326,7 @@ function renderTicketLog() {
 
   var tsel = document.getElementById('tl-filter-tech');
   if (tsel && tsel.options.length <= 1) {
-    techniekers.forEach(function(m) { var tk = typeof m === 'string' ? m : (m.naam || ''); if (!tk) return; var o = document.createElement('option'); o.value = tk; o.textContent = tk; tsel.appendChild(o); });
+    getAssignableNames().forEach(function(naam) { var o = document.createElement('option'); o.value = naam; o.textContent = naam; tsel.appendChild(o); });
   }
 
   var logs = getSRLogs().filter(function(l) {
@@ -3385,8 +3416,8 @@ function renderWeekrapport() {
 
   html += '<div class="rapport-section"><div class="rapport-section-title"><i class="ti ti-users" style="color:var(--green)"></i>Per technieker</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">';
-  techniekers.forEach(function(m) {
-    var tk = typeof m === 'string' ? m : (m.naam || ''); if (!tk) return;
+  getAssignableNames().forEach(function(tk) {
+    // tk is al een naam-string
     var ints = wInts.filter(function(i){return i.techniker===tk;}).length;
     var omzet = logs.filter(function(l){return l.sr.technieker===tk&&l.sr.factureerbaar;}).reduce(function(s,l){return s+parseFloat(l.sr.bedrag||0);},0);
     var gar = logs.filter(function(l){return l.sr.technieker===tk&&l.sr.type==='garantie';}).length;
@@ -3485,10 +3516,10 @@ function renderKPI() {
     '</div>';
 
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:1.5rem">';
-  techniekers.forEach(function(m) {
-    var tk = typeof m === 'string' ? m : (m.naam || ''); if (!tk) return;
-    var rol = typeof m === 'string' ? 'operator' : (m.rol || 'operator');
-    if (rol === 'andere_afdeling') return;
+  getAssignableNames().forEach(function(tk) {
+    // tk is al een naam-string
+
+
     var ints4w = wInts.filter(function(i){return i.techniker===tk;}).length;
     var ints1w = Math.round(ints4w/4);
     var tkOmzet = logs.filter(function(l){return l.sr.technieker===tk&&l.sr.factureerbaar;}).reduce(function(s,l){return s+parseFloat(l.sr.bedrag||0);},0);
@@ -3684,7 +3715,6 @@ function escHtml(s) {
 }
 
 async function loadGebruikers() {
-  if (currentUser && currentUser.email !== ADMIN_EMAIL) return;
   var errEl = document.getElementById('gebruikers-error');
   if (errEl) errEl.style.display = 'none';
   var listEl = document.getElementById('gebruikers-list');
@@ -3696,12 +3726,15 @@ async function loadGebruikers() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var data = await res.json();
     allUsers = data.users || [];
-    renderGebruikers();
+    syncTechnikersFromUsers();
+    fillTechnikerSelects();
+    if (listEl) renderGebruikers();
   } catch(e) {
     if (errEl) { errEl.textContent = 'Kon gebruikers niet laden: ' + (e.message||e); errEl.style.display = 'block'; }
     if (listEl) listEl.innerHTML = '';
   }
 }
+
 
 function getRolLabel(u) {
   if (u.email === ADMIN_EMAIL) return 'admin';
@@ -3789,7 +3822,7 @@ async function updateUserRol(userId, selectEl) {
 }
 
 async function nodigUitGebruiker() {
-  if (!currentUser || currentUser.email !== ADMIN_EMAIL) { showToast('Geen toegang.'); return; }
+  if (currentRole !== 'manager' && (!currentUser || currentUser.email !== ADMIN_EMAIL)) { showToast('Geen toegang.'); return; }
   var email = document.getElementById('nieuw-user-email').value.trim();
   var naam = document.getElementById('nieuw-user-naam').value.trim();
   var rol = document.getElementById('nieuw-user-rol').value;
@@ -3865,10 +3898,7 @@ function renderAgendaWeek() {
   var zichtbaar = getVisibleInterventies();
   var tkKleuren = ['#00DFA3','#3b82f6','#f59e0b','#ef4444','#8b5cf6'];
   var tkKleurMap = {};
-  techniekers.forEach(function(m, idx) {
-    var naam = typeof m === 'string' ? m : m.naam;
-    tkKleurMap[naam] = tkKleuren[idx % tkKleuren.length];
-  });
+  getAssignableNames().forEach(function(naam, idx) { tkKleurMap[naam] = tkKleuren[idx % tkKleuren.length]; });
 
   var dagNamen = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
   var todayStr = today();
@@ -4029,10 +4059,7 @@ function renderAgendaWeek() {
   var zichtbaar = getVisibleInterventies();
   var tkKleuren = ['#00DFA3','#3b82f6','#f59e0b','#ef4444','#8b5cf6'];
   var tkKleurMap = {};
-  techniekers.forEach(function(m, idx) {
-    var naam = typeof m === 'string' ? m : (m.naam || '');
-    tkKleurMap[naam] = tkKleuren[idx % tkKleuren.length];
-  });
+  getAssignableNames().forEach(function(naam, idx) { tkKleurMap[naam] = tkKleuren[idx % tkKleuren.length]; });
 
   var dagNamen = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
   var todayStr = today();
@@ -4298,7 +4325,7 @@ function updateMedVeld(input) {
 <div id="pane-gebruikers" class="page" style="display:none">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:1.25rem">
     <div><div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Gebruikersbeheer</div>
-    <div style="font-size:12px;color:var(--tx2);margin-top:3px">Enkel zichtbaar voor de hoofdadmin</div></div>
+    <div style="font-size:12px;color:var(--tx2);margin-top:3px">Zichtbaar voor managers en admin</div></div>
     <button class="btn" onclick="loadGebruikers()"><i class="ti ti-refresh"></i> Verversen</button>
   </div>
   <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--rl);padding:12px 16px;margin-bottom:1.25rem;font-size:12px;color:var(--tx2)">
