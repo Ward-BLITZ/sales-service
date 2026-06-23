@@ -307,7 +307,7 @@ function renderWeekrapport() {
     '<div class="stat-card"><div class="stat-label">Garantie logs</div><div class="stat-value" style="color:#f59e0b">' + nGar + '</div></div>' +
     '</div>';
 
-  html += '<div class="rapport-section"><div class="rapport-section-title"><i class="ti ti-users" style="color:var(--green)"></i>Per technieker</div>';
+  html += '<div class="rapport-section"><div class="rapport-section-title"><i class="ti ti-users" style="color:var(--green)"></i>Per verantwoordelijke</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">';
   techniekers.forEach(function(m) {
     var tk = typeof m === 'string' ? m : (m.naam || ''); if (!tk) return;
@@ -325,7 +325,7 @@ function renderWeekrapport() {
 
   if (logs.length) {
     html += '<div class="rapport-section"><div class="rapport-section-title"><i class="ti ti-report" style="color:var(--green)"></i>Servicerapporten deze week</div>';
-    html += '<div style="overflow-x:auto"><div class="tl-row tl-hdr"><span>Ref</span><span>Datum</span><span>Technieker</span><span>Klant</span><span>Probleem</span><span>Type</span><span>Garantie</span><span>Fac.</span><span>Bedrag</span></div>';
+    html += '<div style="overflow-x:auto"><div class="tl-row tl-hdr"><span>Ref</span><span>Datum</span><span>Verantwoordelijke</span><span>Klant</span><span>Probleem</span><span>Type</span><span>Garantie</span><span>Fac.</span><span>Bedrag</span></div>';
     html += logs.map(function(l) {
       var sr = l.sr; var isGar = sr.type==='garantie';
       var ref = l.ticket ? tktNr(l.ticket) : (l.interventie ? (l.interventie.titel||'').substring(0,12) : '—');
@@ -961,6 +961,8 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 .modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:1rem;border-top:1px solid var(--bd);padding-top:1rem}
 /* AGENDA */
 .agenda-layout{display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start}
+.agenda-layout.week-view{grid-template-columns:1fr;gap:0}
+.agenda-layout.week-view .agenda-sidebar{display:none}
 .agenda-main{background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;min-height:500px;min-width:0}
 .agenda-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--bd)}
 .agenda-nav-title{font-family:'Poppins',sans-serif;font-size:15px;font-weight:700}
@@ -1125,7 +1127,8 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 .week-cell.today-col{background:rgba(0,223,163,.03)}
 .week-event{font-size:11px;font-weight:700;padding:3px 6px;border-radius:4px;margin-bottom:2px;cursor:pointer;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .week-event:hover{filter:brightness(.92)}
-.agenda-week-wrapper{overflow-y:auto;overflow-x:hidden;max-height:calc(100vh - 260px);width:100%}
+.agenda-week-wrapper{overflow-y:auto;overflow-x:auto;max-height:calc(100vh - 260px);width:100%}
+.week-grid{min-width:700px}
 </style>
 </head>
 <body>
@@ -1242,9 +1245,9 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
       <button class="btn primary" onclick="openInterventieModal(null,null)"><i class="ti ti-plus"></i> Nieuwe interventie</button>
     </div>
   </div>
-  <!-- TECHNIKER FILTER -->
+  <!-- VERANTWOORDELIJKE FILTER -->
   <div style="background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap" id="agenda-tech-filterbar">
-    <span style="font-size:12px;color:var(--tx2);white-space:nowrap"><i class="ti ti-users" style="margin-right:4px"></i>Techniker:</span>
+    <span style="font-size:12px;color:var(--tx2);white-space:nowrap"><i class="ti ti-users" style="margin-right:4px"></i>Verantwoordelijke:</span>
     <div id="agenda-tech-pills" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   </div>
   <div class="agenda-layout">
@@ -1468,8 +1471,8 @@ CREATE POLICY "allow all" ON service_settings FOR ALL USING (true) WITH CHECK (t
       <div class="field"><label>Eindtijd</label><input id="int-tot" type="time" value="12:00"></div>
     </div>
     <div class="grid2">
-      <div class="field"><label>Techniker</label>
-        <select id="int-techniker"><option value="">— Selecteer techniker —</option></select>
+      <div class="field"><label>Verantwoordelijke</label>
+        <select id="int-techniker"><option value="">— Selecteer verantwoordelijke —</option></select>
       </div>
       <div class="field"><label>Gelinkt ticket</label>
         <select id="int-ticket-link"><option value="">— Geen ticket —</option></select>
@@ -2273,7 +2276,7 @@ function openInterventieModal(id, prefillDatum) {
 
   // Techniker select
   const tsel = document.getElementById('int-techniker');
-  tsel.innerHTML = '<option value="">— Selecteer techniker —</option>' +
+  tsel.innerHTML = '<option value="">— Selecteer verantwoordelijke —</option>' +
     getAssignableNames().map(function(naam) { return '<option value="' + naam + '"' + (int && int.techniker === naam ? ' selected' : '') + '>' + naam + '</option>'; }).join('');
 
   // Ticket link select
@@ -2912,7 +2915,7 @@ function fillTechnikerSelects() {
     var el = document.getElementById(id);
     if (!el) return;
     var cur = el.value;
-    var placeholder = id === 'tkt-assigned' ? 'Niet toegewezen' : 'Selecteer techniker';
+    var placeholder = id === 'tkt-assigned' ? 'Niet toegewezen' : 'Selecteer verantwoordelijke';
     el.innerHTML = '<option value="">— ' + placeholder + ' —</option>' +
       names.map(function(naam) {
         return '<option value="' + naam + '"' + (cur === naam ? ' selected' : '') + '>' + naam + '</option>';
@@ -2936,7 +2939,7 @@ function removeTechniker(i) {
   renderTechniekers();
   fillTechnikerSelects();
   saveSettings();
-  showToast('Techniker verwijderd.');
+  showToast('Medewerker verwijderd.');
 }
 
 // FIX 3: ticket-modal sluit NIET op backdrop click (auto-save ipv verlies)
@@ -3414,7 +3417,7 @@ function renderWeekrapport() {
     '<div class="stat-card"><div class="stat-label">Garantie logs</div><div class="stat-value" style="color:#f59e0b">' + nGar + '</div></div>' +
     '</div>';
 
-  html += '<div class="rapport-section"><div class="rapport-section-title"><i class="ti ti-users" style="color:var(--green)"></i>Per technieker</div>';
+  html += '<div class="rapport-section"><div class="rapport-section-title"><i class="ti ti-users" style="color:var(--green)"></i>Per verantwoordelijke</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">';
   getAssignableNames().forEach(function(tk) {
     // tk is al een naam-string
@@ -3432,7 +3435,7 @@ function renderWeekrapport() {
 
   if (logs.length) {
     html += '<div class="rapport-section"><div class="rapport-section-title"><i class="ti ti-report" style="color:var(--green)"></i>Servicerapporten deze week</div>';
-    html += '<div style="overflow-x:auto"><div class="tl-row tl-hdr"><span>Ref</span><span>Datum</span><span>Technieker</span><span>Klant</span><span>Probleem</span><span>Type</span><span>Garantie</span><span>Fac.</span><span>Bedrag</span></div>';
+    html += '<div style="overflow-x:auto"><div class="tl-row tl-hdr"><span>Ref</span><span>Datum</span><span>Verantwoordelijke</span><span>Klant</span><span>Probleem</span><span>Type</span><span>Garantie</span><span>Fac.</span><span>Bedrag</span></div>';
     html += logs.map(function(l) {
       var sr = l.sr; var isGar = sr.type==='garantie';
       var ref = l.ticket ? tktNr(l.ticket) : (l.interventie ? (l.interventie.titel||'').substring(0,12) : '—');
@@ -4023,6 +4026,9 @@ wpCycleCell = function(di, slot) {
 // ═══ AGENDA VIEW TOGGLE ═══
 function setAgendaView(view) {
   agendaView = view;
+  // Toggle week-view class op agenda-layout voor full-width week grid
+  var layout = document.querySelector('.agenda-layout');
+  if (layout) layout.classList.toggle('week-view', view === 'week');
   var prevBtn = document.querySelector('.agenda-nav-btn:first-child');
   var nextBtn = document.querySelector('.agenda-nav-btn:last-child');
   if (prevBtn) prevBtn.onclick = function() {
@@ -4183,14 +4189,14 @@ function updateMedVeld(input) {
     <button class="btn primary" onclick="openProjectModal(null)"><i class="ti ti-plus"></i> Nieuw project</button>
   </div>
   <div class="filter-bar">
-    <span class="filter-label"><i class="ti ti-user" style="margin-right:4px"></i>Technieker:</span>
+    <span class="filter-label"><i class="ti ti-user" style="margin-right:4px"></i>Verantwoordelijke:</span>
     <div class="pills" id="pills-proj-tech"></div>
     <span class="filter-label" style="margin-left:10px">Type:</span>
     <div class="pills" id="pills-proj-type"></div>
     <input id="proj-search" placeholder="Zoeken..." oninput="renderProjecten()" style="max-width:180px;margin-left:auto">
   </div>
   <div style="display:grid;grid-template-columns:90px 1fr 100px 100px 90px 120px 60px;gap:8px;padding:5px 14px;font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
-    <span>ID</span><span>Project</span><span>Technieker</span><span>Type</span><span>Deadline</span><span>Status / Prio</span><span></span>
+    <span>ID</span><span>Project</span><span>Verantwoordelijke</span><span>Type</span><span>Deadline</span><span>Status / Prio</span><span></span>
   </div>
   <div id="projecten-list"></div>
 </div>
@@ -4217,7 +4223,7 @@ function updateMedVeld(input) {
     <div><div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:600">Ticket Log</div>
     <div style="font-size:12px;color:var(--tx2);margin-top:3px">Automatisch gevuld vanuit servicerapporten</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <select id="tl-filter-tech" onchange="renderTicketLog()" style="font-size:12px;padding:6px 10px"><option value="">Alle techniekers</option></select>
+      <select id="tl-filter-tech" onchange="renderTicketLog()" style="font-size:12px;padding:6px 10px"><option value="">Alle verantwoordelijken</option></select>
       <select id="tl-filter-fac" onchange="renderTicketLog()" style="font-size:12px;padding:6px 10px">
         <option value="">Alle</option><option value="ja">Factureerbaar</option><option value="garantie">Garantie</option></select>
       <input id="tl-week-from" type="week" onchange="renderTicketLog()" style="font-size:12px;padding:5px">
@@ -4226,7 +4232,7 @@ function updateMedVeld(input) {
   </div>
   <div class="stats-bar" id="tl-stats"></div>
   <div style="overflow-x:auto">
-    <div class="tl-row tl-hdr"><span>Ticket</span><span>Datum</span><span>Technieker</span><span>Klant</span><span>Omschrijving</span><span>Type</span><span>Garantie</span><span>Fac.</span><span>Bedrag</span></div>
+    <div class="tl-row tl-hdr"><span>Ticket</span><span>Datum</span><span>Verantwoordelijke</span><span>Klant</span><span>Omschrijving</span><span>Type</span><span>Garantie</span><span>Fac.</span><span>Bedrag</span></div>
     <div id="ticketlog-list"></div>
   </div>
   <div style="margin-top:1rem;padding:12px 16px;background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);font-size:13px">
@@ -4261,9 +4267,9 @@ function updateMedVeld(input) {
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px">
     <div class="info-card" style="grid-column:1/-1">
       <h3><i class="ti ti-bolt" style="color:var(--green);margin-right:8px"></i>Blitz Power Service & Operaties</h3>
-      <p style="font-size:13px;color:var(--tx2);line-height:1.7">Dit dashboard vertaalt de Service Strategie 2026 naar één werkend instrument. Techniekers loggen dagelijks tickets/interventies. De manager ziet automatisch wat te factureren is, wat verzonden moet worden en waar resources verschoven moeten worden.</p>
+      <p style="font-size:13px;color:var(--tx2);line-height:1.7">Dit dashboard vertaalt de Service Strategie 2026 naar één werkend instrument. Verantwoordelijken loggen dagelijks tickets/interventies. De manager ziet automatisch wat te factureren is, wat verzonden moet worden en waar resources verschoven moeten worden.</p>
       <div style="margin-top:1rem;display:flex;gap:10px;flex-wrap:wrap">
-        <div style="background:var(--bg2);border-radius:var(--r);padding:8px 14px;font-size:12px"><strong>Dagelijks</strong><br>Techniekers loggen tickets</div>
+        <div style="background:var(--bg2);border-radius:var(--r);padding:8px 14px;font-size:12px"><strong>Dagelijks</strong><br>Verantwoordelijken loggen tickets</div>
         <div style="background:var(--bg2);border-radius:var(--r);padding:8px 14px;font-size:12px"><strong>Vrijdag/Maandag</strong><br>Weekrapport bekijken</div>
         <div style="background:var(--bg2);border-radius:var(--r);padding:8px 14px;font-size:12px"><strong>Maandelijks</strong><br>KPI targets herzien</div>
       </div>
@@ -4369,7 +4375,7 @@ function updateMedVeld(input) {
     </div>
     <div class="grid2">
       <div class="field"><label>Projectnaam *</label><input id="proj-naam" placeholder="Installatie klant XYZ..."></div>
-      <div class="field"><label>Technieker</label><select id="proj-tech"><option value="">Selecteer...</option></select></div>
+      <div class="field"><label>Verantwoordelijke</label><select id="proj-tech"><option value="">Selecteer...</option></select></div>
     </div>
     <div class="grid3">
       <div class="field"><label>Type</label>
@@ -4415,7 +4421,7 @@ function updateMedVeld(input) {
           <div class="sr-section-title">Algemeen</div>
           <div class="grid2">
             <div class="field"><label>Datum</label><input id="sr-datum" type="date"></div>
-            <div class="field"><label>Technieker</label><input id="sr-technieker" readonly style="background:var(--bg2)"></div>
+            <div class="field"><label>Verantwoordelijke</label><input id="sr-technieker" readonly style="background:var(--bg2)"></div>
           </div>
           <div class="grid2">
             <div class="field"><label>Starttijd</label><input id="sr-start" type="time"></div>
