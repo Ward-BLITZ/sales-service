@@ -343,6 +343,8 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 .inst-kol-body{min-height:160px;flex:1;overflow-y:auto;padding-right:2px}
 .inst-card{background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
 .inst-card:hover{border-color:var(--green);box-shadow:0 2px 10px rgba(0,223,163,.12)}
+.inst-card.dragging{opacity:.3;transform:scale(.97)}
+.inst-kol-body.inst-drag-over{outline:2px dashed var(--green);outline-offset:-3px;background:rgba(0,223,163,.06);border-radius:var(--rl)}
 .inst-card-naam{font-family:'Poppins',sans-serif;font-size:12px;font-weight:700;color:var(--tx);margin-bottom:2px}
 .inst-card-sub{font-size:11px;color:var(--tx3)}
 .inst-card-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
@@ -634,89 +636,181 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 
 <!-- SERVICE & INSTALLATIES DASHBOARD -->
 <div id="pane-installaties" class="page wide" style="display:none">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:1.25rem;max-width:1600px;margin-left:auto;margin-right:auto">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:1rem;max-width:1600px;margin-left:auto;margin-right:auto">
     <div>
       <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:700">Dashboard Installaties</div>
-      <div style="font-size:12px;color:var(--tx2)">Overzicht van alle installatie-dossiers per fase</div>
+      <div style="font-size:12px;color:var(--tx2)">Sleep kaarten tussen kolommen om de fase te wijzigen</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <div class="pills" id="inst-pills-resp"></div>
       <button class="btn primary" onclick="instOpenNieuw()"><i class="ti ti-plus"></i> Nieuwe installatie</button>
     </div>
   </div>
-  <!-- Stats -->
-  <div class="stats-bar" id="inst-stats" style="max-width:1600px;margin:0 auto 1rem"></div>
-  <!-- Kanban -->
-  <div style="max-width:1600px;margin:0 auto">
-    <div class="inst-kanban" id="inst-kanban-board"></div>
+  <div class="stats-bar" id="inst-stats" style="max-width:1600px;margin:0 auto .75rem"></div>
+  <!-- Kanban + Opvolging sidebar naast elkaar -->
+  <div style="max-width:1600px;margin:0 auto;display:flex;gap:16px;align-items:flex-start">
+    <div style="flex:1;min-width:0;overflow-x:auto">
+      <div class="inst-kanban" id="inst-kanban-board"></div>
+    </div>
+    <!-- Opvolging sidebar -->
+    <div style="width:260px;flex-shrink:0;position:sticky;top:80px;max-height:calc(100vh - 100px);overflow-y:auto;display:flex;flex-direction:column;gap:10px">
+      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:14px">
+        <div style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-calendar-check" style="color:#e85d04"></i>Aankomend</div>
+        <div id="inst-opvolg-sidebar"></div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:14px">
+        <div style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-clipboard-check" style="color:#7b2d8b"></i>Keuringen</div>
+        <div id="inst-keur-sidebar"></div>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- SERVICE & INSTALLATIES OPVOLGING -->
+<!-- SERVICE & INSTALLATIES OPVOLGING (lijst) -->
 <div id="pane-si-opvolging" class="page" style="display:none">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:1.25rem">
     <div>
-      <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:700">Opvolging — Service &amp; Installaties</div>
-      <div style="font-size:12px;color:var(--tx2)">Alle installaties, keuringen en opvolgingen in detail</div>
+      <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:700">Opvolging — Installaties</div>
+      <div style="font-size:12px;color:var(--tx2)">Alle dossiers in lijstoverzicht</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <div class="pills" id="si-opv-pills-fase"></div>
       <div class="pills" id="si-opv-pills-resp"></div>
     </div>
   </div>
-  <!-- Lijst header -->
   <div style="display:grid;grid-template-columns:1.8fr 1.2fr 1fr 1fr 1fr 100px;gap:10px;padding:5px 14px;font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
-    <span>Naam / Klant</span><span>Fase</span><span>Installatie</span><span>Keuring</span><span>Verantwoordelijke</span><span></span>
+    <span>Naam / Project</span><span>Fase</span><span>Installatie</span><span>Keuring</span><span>Verantwoordelijke</span><span></span>
   </div>
   <div id="si-opvolg-list"></div>
 </div>
 
-<!-- INSTALLATIE MODAL -->
-<div class="modal-overlay" id="inst-modal-overlay">
-  <div class="modal-box" style="max-width:680px">
-    <div class="modal-header">
-      <span class="modal-title" id="inst-modal-titel">Nieuwe installatie</span>
-      <button class="modal-close" onclick="instCloseModal()"><i class="ti ti-x"></i></button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="field"><label>Naam klant *</label><input id="inst-naam" placeholder="Jan Vermeersch"></div>
-      <div class="field"><label>Adres</label><input id="inst-adres" placeholder="Straat, gemeente"></div>
-      <div class="field"><label>Telefoon</label><input id="inst-tel" type="tel" placeholder="0477 ..."></div>
-      <div class="field"><label>E-mail</label><input id="inst-email" type="email" placeholder="jan@mail.be"></div>
-      <div class="field"><label>Verantwoordelijke</label>
-        <select id="inst-resp"><option value="">— kies —</option></select>
-      </div>
-      <div class="field"><label>Fase</label>
-        <select id="inst-fase">
-          <option value="Nieuw">Nieuw</option>
-          <option value="Info verkrijgen">Info verkrijgen</option>
-          <option value="Screening ok">Screening ok</option>
-          <option value="Installatie gepland">Installatie gepland</option>
-          <option value="Installatie &amp; Keuring gepland">Installatie &amp; Keuring gepland</option>
+<!-- INSTALLATIE DOSSIER MODAL (volledig) -->
+<div class="modal-overlay" id="inst-dossier-overlay">
+  <div class="modal-box" style="max-width:900px;width:98vw;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
+      <span class="modal-title" id="inst-dossier-titel">Installatie dossier</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+        <select id="inst-dossier-fase" onchange="instDossierFaseChange(this.value)"
+          style="font-size:12px;padding:5px 10px;border-radius:20px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-weight:600">
+          <option>Nieuw</option><option>Info verkrijgen</option><option>Screening ok</option>
+          <option>Installatie gepland</option><option>Installatie &amp; Keuring gepland</option>
         </select>
+        <button class="modal-close" onclick="instDossierClose()"><i class="ti ti-x"></i></button>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px">
-      <div class="field"><label><i class="ti ti-tool" style="color:var(--green);margin-right:4px"></i>Installatiedatum</label><input type="date" id="inst-datum-inst"></div>
-      <div class="field"><label>Uur installatie</label><input type="time" id="inst-uur-inst" value="09:00"></div>
-      <div class="field"><label><i class="ti ti-clipboard-check" style="color:#534AB7;margin-right:4px"></i>Keuringsdatum</label><input type="date" id="inst-datum-keur"></div>
-      <div class="field"><label>Uur keuring</label><input type="time" id="inst-uur-keur" value="14:00"></div>
+    <!-- Tabbladen -->
+    <div class="inner-tabs" style="flex-shrink:0">
+      <button class="inner-tab active" id="inst-dtab-installatie" onclick="instDossierTab('installatie')"><i class="ti ti-tool" style="margin-right:5px"></i>Installatie</button>
+      <button class="inner-tab" id="inst-dtab-screening" onclick="instDossierTab('screening')"><i class="ti ti-clipboard-list" style="margin-right:5px"></i>Screening</button>
+      <button class="inner-tab" id="inst-dtab-documenten" onclick="instDossierTab('documenten')"><i class="ti ti-paperclip" style="margin-right:5px"></i>Documenten</button>
+      <button class="inner-tab" id="inst-dtab-ticket" onclick="instDossierTab('ticket')"><i class="ti ti-ticket" style="margin-right:5px"></i>Ticket info</button>
     </div>
-    <div class="field" style="margin-top:4px"><label>Notities</label><textarea id="inst-notities" rows="3" placeholder="Extra info, bijzonderheden..."></textarea></div>
-    <div class="field">
-      <label>Gekoppeld aan (B2C lead / B2B project)</label>
-      <div style="position:relative">
-        <input id="inst-link-search" placeholder="Zoek lead of project..." autocomplete="off"
-          oninput="instLinkSearch(this.value)" style="width:100%">
-        <input type="hidden" id="inst-link-id" value="">
-        <input type="hidden" id="inst-link-label" value="">
-        <div id="inst-link-dd" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:300;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.14);max-height:200px;overflow-y:auto"></div>
+    <div style="flex:1;overflow-y:auto;padding:0 2px">
+      <!-- TAB: INSTALLATIE -->
+      <div id="inst-dtab-content-installatie">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="field"><label>Voornaam *</label><input id="id-voornaam" placeholder="Jan"></div>
+          <div class="field"><label>Achternaam *</label><input id="id-achternaam" placeholder="Vermeersch"></div>
+          <div class="field"><label>Projectnaam / omschrijving</label><input id="id-project" placeholder="bv. EV-lader thuis Gent"></div>
+          <div class="field"><label>Verantwoordelijke</label>
+            <select id="id-resp"><option value="">— kies —</option></select>
+          </div>
+        </div>
+        <div class="field"><label><i class="ti ti-map-pin" style="color:var(--green);margin-right:4px"></i>Installatieadres</label><input id="id-adres" placeholder="Straat, nr, gemeente"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="field"><label>Telefoon</label><input id="id-tel" type="tel" placeholder="0477 ..."></div>
+          <div class="field"><label>E-mail</label><input id="id-email" type="email" placeholder="jan@mail.be"></div>
+          <div class="field"><label><i class="ti ti-tool" style="color:#e85d04;margin-right:4px"></i>Installatiedatum</label><input type="date" id="id-datum-inst"></div>
+          <div class="field"><label>Uur installatie</label><input type="time" id="id-uur-inst" value="09:00"></div>
+          <div class="field"><label><i class="ti ti-clipboard-check" style="color:#7b2d8b;margin-right:4px"></i>Keuringsdatum</label><input type="date" id="id-datum-keur"></div>
+          <div class="field"><label>Uur keuring</label><input type="time" id="id-uur-keur" value="14:00"></div>
+        </div>
+        <div class="field"><label>Gekoppeld aan (B2C / B2B)</label>
+          <div style="position:relative">
+            <input id="id-link-search" placeholder="Zoek lead of project..." autocomplete="off" oninput="instLinkSearch2(this.value)" style="width:100%">
+            <input type="hidden" id="id-link-id"><input type="hidden" id="id-link-label">
+            <div id="id-link-dd" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:300;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.14);max-height:180px;overflow-y:auto"></div>
+          </div>
+        </div>
+        <!-- Activiteitenlog -->
+        <div style="margin-top:1rem;border-top:1px solid var(--bd);padding-top:1rem">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+            <span><i class="ti ti-timeline" style="margin-right:5px"></i>Activiteitenlog</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <input id="id-log-tekst" placeholder="Noteer een actie of opvolging..." style="flex:1;font-size:12px">
+            <button class="btn sm primary" onclick="instLogAdd()"><i class="ti ti-plus"></i></button>
+          </div>
+          <div id="id-log-list" style="max-height:220px;overflow-y:auto"></div>
+        </div>
+      </div>
+      <!-- TAB: SCREENING -->
+      <div id="inst-dtab-content-screening" style="display:none">
+        <div style="font-size:13px;color:var(--tx2);margin-bottom:1rem">Screeningsformulier voor de installatie ter plaatse.</div>
+        <div class="screening-section">
+          <div class="screening-title">Elektrische aansluiting</div>
+          <div class="screening-row"><span class="screening-vraag">Heeft de woning een enkelfasige aansluiting (1x230V)?</span><div class="toggle-group"><span class="toggle-opt" data-sc="aansluiting-1f" onclick="instScToggle(this,'ja')">Ja</span><span class="toggle-opt" data-sc="aansluiting-1f" onclick="instScToggle(this,'nee')">Nee</span></div></div>
+          <div class="screening-row"><span class="screening-vraag">Heeft de woning een driefasige aansluiting (3x400V)?</span><div class="toggle-group"><span class="toggle-opt" data-sc="aansluiting-3f" onclick="instScToggle(this,'ja')">Ja</span><span class="toggle-opt" data-sc="aansluiting-3f" onclick="instScToggle(this,'nee')">Nee</span></div></div>
+          <div class="screening-row"><span class="screening-vraag">Zekeringskast geschikt voor laadpaal?</span><div class="toggle-group"><span class="toggle-opt" data-sc="zekering" onclick="instScToggle(this,'ja')">Ja</span><span class="toggle-opt" data-sc="zekering" onclick="instScToggle(this,'nee')">Nee</span><span class="toggle-opt" data-sc="zekering" onclick="instScToggle(this,'nader')">Nader te bekijken</span></div></div>
+          <div class="screening-row"><span class="screening-vraag">Vrije aardingspin aanwezig?</span><div class="toggle-group"><span class="toggle-opt" data-sc="aarding" onclick="instScToggle(this,'ja')">Ja</span><span class="toggle-opt" data-sc="aarding" onclick="instScToggle(this,'nee')">Nee</span></div></div>
+        </div>
+        <div class="screening-section">
+          <div class="screening-title">Locatie laadpaal</div>
+          <div class="screening-row"><span class="screening-vraag">Voorziene locatie laadpaal (garage / carport / oprit)</span>
+            <select id="inst-sc-locatie" style="font-size:12px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--bd);background:var(--bg);max-width:180px">
+              <option value="">— kies —</option><option>Garage</option><option>Carport</option><option>Oprit</option><option>Buitenmuur</option><option>Andere</option>
+            </select>
+          </div>
+          <div class="screening-row"><span class="screening-vraag">Afstand zekeringskast tot laadpaal (m)</span><input type="number" id="inst-sc-afstand" placeholder="bv. 8" style="width:90px;font-size:12px;padding:4px 8px"></div>
+          <div class="screening-row"><span class="screening-vraag">Kabel door muur / vloer nodig?</span><div class="toggle-group"><span class="toggle-opt" data-sc="kabel-muur" onclick="instScToggle(this,'ja')">Ja</span><span class="toggle-opt" data-sc="kabel-muur" onclick="instScToggle(this,'nee')">Nee</span></div></div>
+          <div class="screening-row"><span class="screening-vraag">Buiten montage (weerbestendig vereist)?</span><div class="toggle-group"><span class="toggle-opt" data-sc="buiten" onclick="instScToggle(this,'ja')">Ja</span><span class="toggle-opt" data-sc="buiten" onclick="instScToggle(this,'nee')">Nee</span></div></div>
+        </div>
+        <div class="screening-section">
+          <div class="screening-title">Laadpaal & voertuig</div>
+          <div class="screening-row"><span class="screening-vraag">Type laadpaal</span>
+            <select id="inst-sc-type-paal" style="font-size:12px;padding:4px 8px;border-radius:var(--r);border:1px solid var(--bd);background:var(--bg);max-width:200px">
+              <option value="">— kies —</option><option>Blitz Power Home 7.4kW</option><option>Blitz Power Home 11kW</option><option>Blitz Power Home 22kW</option><option>Andere</option>
+            </select>
+          </div>
+          <div class="screening-row"><span class="screening-vraag">Smart charging / load balancing gewenst?</span><div class="toggle-group"><span class="toggle-opt" data-sc="smart" onclick="instScToggle(this,'ja')">Ja</span><span class="toggle-opt" data-sc="smart" onclick="instScToggle(this,'nee')">Nee</span></div></div>
+          <div class="screening-row"><span class="screening-vraag">Zonnepanelen aanwezig?</span><div class="toggle-group"><span class="toggle-opt" data-sc="zonnepanelen" onclick="instScToggle(this,'ja')">Ja</span><span class="toggle-opt" data-sc="zonnepanelen" onclick="instScToggle(this,'nee')">Nee</span></div></div>
+        </div>
+        <div class="field"><label>Opmerkingen screening</label><textarea id="inst-sc-opm" rows="3" placeholder="Bijzonderheden, afwijkingen, vereisten..."></textarea></div>
+        <!-- Foto zone -->
+        <div style="margin-top:1rem;border-top:1px solid var(--bd);padding-top:1rem">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:10px"><i class="ti ti-camera" style="margin-right:5px"></i>Foto's</div>
+          <div class="foto-upload-zone" onclick="document.getElementById('inst-foto-input').click()">
+            <input type="file" id="inst-foto-input" multiple accept="image/*" style="display:none" onchange="instFotoSelected(event)">
+            <i class="ti ti-camera" style="font-size:22px;color:var(--tx3);display:block;margin-bottom:4px"></i>
+            <span style="font-size:12px;color:var(--tx3)">Klik om foto's te uploaden</span>
+          </div>
+          <div class="foto-grid" id="inst-foto-grid"></div>
+        </div>
+      </div>
+      <!-- TAB: DOCUMENTEN -->
+      <div id="inst-dtab-content-documenten" style="display:none">
+        <div style="font-size:13px;color:var(--tx2);margin-bottom:1rem">Opladen van offertes, schema's, attesten, facturen, ...</div>
+        <div class="attach-drop" id="inst-doc-drop"
+             ondragover="instDocDragOver(event)" ondragleave="instDocDragLeave(event)" ondrop="instDocDrop(event)"
+             onclick="document.getElementById('inst-doc-input').click()">
+          <input type="file" id="inst-doc-input" multiple style="display:none" onchange="instDocSelected(event)">
+          <i class="ti ti-upload" style="font-size:22px;color:var(--tx3);display:block;margin-bottom:4px"></i>
+          <span style="font-size:12px;color:var(--tx3)">Klik of sleep bestanden (pdf, foto, doc, ...)</span>
+        </div>
+        <div class="attach-list" id="inst-doc-list"></div>
+      </div>
+      <!-- TAB: TICKET INFO -->
+      <div id="inst-dtab-content-ticket" style="display:none">
+        <div style="font-size:13px;color:var(--tx2);margin-bottom:1rem">Gekoppelde lead of project informatie.</div>
+        <div id="inst-ticket-info-content">
+          <div style="text-align:center;padding:2rem;color:var(--tx3)"><i class="ti ti-link-off" style="font-size:32px;display:block;margin-bottom:8px"></i>Geen koppeling ingesteld. Koppel een B2C lead of B2B project via het Installatie-tabblad.</div>
+        </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn danger" id="inst-del-btn" style="display:none;margin-right:auto" onclick="instDelete()"><i class="ti ti-trash"></i></button>
-      <button class="btn" onclick="instCloseModal()">Annuleren</button>
-      <button class="btn primary" onclick="instSave()"><i class="ti ti-check"></i> Opslaan</button>
+    <div class="modal-footer" style="flex-shrink:0">
+      <button class="btn danger" id="inst-dossier-del-btn" style="display:none;margin-right:auto" onclick="instDossierDelete()"><i class="ti ti-trash"></i> Verwijderen</button>
+      <button class="btn" onclick="instDossierClose()">Sluiten</button>
+      <button class="btn primary" onclick="instDossierSave()"><i class="ti ti-check"></i> Opslaan</button>
     </div>
   </div>
 </div>
@@ -3616,14 +3710,19 @@ function updateNavDdActive(name){
     const id=btn.id||'';
     btn.classList.toggle('active',id==='tab-'+name);
   });
-  // Mark agenda tab-btn active
   const agBtn=document.getElementById('tab-agenda');
   if(agBtn)agBtn.classList.toggle('active',name==='agenda');
 }
 
 // ── INSTALLATIES DATA ──
+let instDragId=null;
+let instDossierOpenId=null;
+let instCurrentFotos=[];
+let instCurrentDocs=[];
+let instScreeningData={};
+
 function instLoadFromStorage(){
-  try{const d=localStorage.getItem('blitz_installaties');if(d){installaties=JSON.parse(d);instNextId=Math.max(1,...installaties.map(i=>i.id||0))+1;}}catch{}
+  try{const d=localStorage.getItem('blitz_installaties');if(d){installaties=JSON.parse(d);instNextId=Math.max(1,...installaties.map(i=>typeof i.id==='number'?i.id:0))+1;}}catch{}
 }
 function instSaveToStorage(){
   try{localStorage.setItem('blitz_installaties',JSON.stringify(installaties));}catch{}
@@ -3643,217 +3742,546 @@ function instRenderBoard(){
     const tot=installaties.length;
     const gepland=installaties.filter(i=>i.fase==='Installatie gepland'||i.fase==='Installatie & Keuring gepland').length;
     const keuringen=installaties.filter(i=>i.datumKeur&&i.datumKeur>=today()).length;
+    const laat=installaties.filter(i=>i.datumInst&&i.datumInst<today()&&i.fase!=='Installatie & Keuring gepland').length;
     statsEl.innerHTML=`
-      <div class="stat-card"><div class="stat-label">Totaal</div><div class="stat-value">${tot}</div></div>
+      <div class="stat-card"><div class="stat-label">Totaal dossiers</div><div class="stat-value">${tot}</div></div>
       <div class="stat-card"><div class="stat-label">Installaties gepland</div><div class="stat-value" style="color:#e85d04">${gepland}</div></div>
-      <div class="stat-card"><div class="stat-label">Keuringen aankomend</div><div class="stat-value" style="color:#7b2d8b">${keuringen}</div></div>`;
+      <div class="stat-card"><div class="stat-label">Keuringen aankomend</div><div class="stat-value" style="color:#7b2d8b">${keuringen}</div></div>
+      ${laat?`<div class="stat-card"><div class="stat-label">Te laat</div><div class="stat-value" style="color:#a32d2d">${laat}</div></div>`:''}`;
   }
-  // Kanban
+  // Kanban board
   const board=document.getElementById('inst-kanban-board');if(!board)return;
   const filtered=instRespFilter==='alle'?installaties:installaties.filter(i=>i.resp===instRespFilter);
   board.innerHTML=INST_FASES.map(fase=>{
     const cards=filtered.filter(i=>i.fase===fase);
     const cardHtml=cards.length?cards.map(i=>instCardHtml(i)).join('')
-      :`<div style="text-align:center;padding:20px 8px;color:var(--tx3);font-size:12px"><i class="ti ti-inbox" style="font-size:20px;display:block;margin-bottom:4px"></i>Leeg</div>`;
-    const faseKleur=fase==='Nieuw'?'#00DFA3':fase==='Info verkrijgen'?'#f59e0b':fase==='Screening ok'?'#3b82f6':fase==='Installatie gepland'?'#e85d04':'#7b2d8b';
-    return`<div class="inst-kol">
+      :`<div class="kol-empty"><i class="ti ti-inbox" style="font-size:20px;display:block;margin-bottom:4px"></i>Leeg</div>`;
+    const faseKleur=instFaseKleur(fase);
+    return`<div class="inst-kol" style="flex:0 0 210px;background:var(--bg2);border-radius:var(--rl);padding:10px;display:flex;flex-direction:column;max-height:calc(100vh - 160px)">
       <div class="inst-kol-hdr" style="border-bottom-color:${faseKleur}">
-        <span class="inst-kol-title">${fase}</span>
+        <span class="inst-kol-title" style="color:${faseKleur}">${fase}</span>
         <span style="display:inline-block;background:var(--bg3);color:var(--tx3);font-size:11px;font-weight:600;padding:1px 7px;border-radius:20px;margin-left:6px">${cards.length}</span>
       </div>
-      <div class="inst-kol-body">${cardHtml}</div>
+      <div class="inst-kol-body kol-body" data-fase="${fase}"
+        ondragover="instDragOver(event)" ondragleave="instDragLeave(event)" ondrop="instDrop(event,'${fase}')">${cardHtml}</div>
     </div>`;
   }).join('');
+
+  // Opvolging sidebar
+  instRenderSidebar();
+}
+
+function instFaseKleur(fase){
+  return{Nieuw:'#00DFA3','Info verkrijgen':'#f59e0b','Screening ok':'#3b82f6','Installatie gepland':'#e85d04','Installatie & Keuring gepland':'#7b2d8b'}[fase]||'#888';
 }
 
 function instCardHtml(i){
   const instDatum=i.datumInst?`<span class="inst-badge inst-badge-inst"><i class="ti ti-tool" style="font-size:9px"></i> ${i.datumInst}</span>`:'';
   const keurDatum=i.datumKeur?`<span class="inst-badge inst-badge-keur"><i class="ti ti-clipboard-check" style="font-size:9px"></i> ${i.datumKeur}</span>`:'';
-  const isLate=i.datumInst&&i.datumInst<today();
-  return`<div class="inst-card${isLate?' style="border-left:3px solid #a32d2d"':''}" onclick="instOpenEdit(${i.id})">
-    <div class="inst-card-naam">${i.naam||''}</div>
-    <div class="inst-card-sub">${i.adres||i.tel||'—'}</div>
-    ${i.resp?`<div style="font-size:10px;color:var(--tx3);margin-top:3px"><i class="ti ti-user" style="font-size:9px"></i> ${i.resp}</div>`:''}
-    <div class="inst-card-badges">${instDatum}${keurDatum}</div>
+  const isLate=i.datumInst&&i.datumInst<today()&&i.fase!=='Installatie & Keuring gepland';
+  const naam=(i.voornaam||i.naam||'')+(i.achternaam?' '+i.achternaam:'');
+  return`<div class="inst-card tile" draggable="true" data-id="${i.id}"
+    ondragstart="instDragStart(event,${i.id})" ondragend="instDragEnd(event)"
+    onclick="if(!instDidDrag)instDossierOpen(${i.id})"
+    style="${isLate?'border-left:3px solid #a32d2d;':''}">
+    <div class="tile-body">
+      <div class="inst-card-naam">${naam||'—'}</div>
+      <div class="inst-card-sub">${i.project||i.adres||i.tel||'—'}</div>
+      ${i.resp?`<div style="font-size:10px;color:var(--tx3);margin-top:3px"><i class="ti ti-user" style="font-size:9px"></i> ${i.resp}</div>`:''}
+      <div class="inst-card-badges" style="margin-top:6px">${instDatum}${keurDatum}</div>
+    </div>
   </div>`;
+}
+
+let instDidDrag=false;
+function instDragStart(e,id){
+  instDragId=id;instDidDrag=false;
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed='move';
+}
+function instDragEnd(e){
+  e.target.classList.remove('dragging');
+  setTimeout(()=>{instDidDrag=false;},50);
+}
+function instDragOver(e){
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  const col=e.currentTarget;
+  col.classList.add('inst-drag-over');
+  instDidDrag=true;
+}
+function instDragLeave(e){e.currentTarget.classList.remove('inst-drag-over');}
+function instDrop(e,fase){
+  e.preventDefault();
+  e.currentTarget.classList.remove('inst-drag-over');
+  if(!instDragId)return;
+  const inst=installaties.find(x=>x.id===instDragId);
+  if(inst&&inst.fase!==fase){
+    inst.fase=fase;
+    inst.acties=inst.acties||[];
+    inst.acties.push({datum:today(),tekst:'Fase gewijzigd naar: '+fase});
+    instSaveToStorage();
+    instRenderBoard();
+    siOpvRender();
+  }
+  instDragId=null;
 }
 
 function instSetRespFilter(r){instRespFilter=r;instRenderBoard();}
 
-// ── INSTALLATIES MODAL ──
-function instOpenNieuw(){
-  instEditId=null;
-  document.getElementById('inst-modal-titel').textContent='Nieuwe installatie';
-  document.getElementById('inst-del-btn').style.display='none';
-  ['inst-naam','inst-adres','inst-tel','inst-email','inst-notities','inst-link-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('inst-link-id').value='';
-  document.getElementById('inst-link-label').value='';
-  document.getElementById('inst-link-dd').style.display='none';
-  document.getElementById('inst-datum-inst').value='';
-  document.getElementById('inst-uur-inst').value='09:00';
-  document.getElementById('inst-datum-keur').value='';
-  document.getElementById('inst-uur-keur').value='14:00';
-  document.getElementById('inst-fase').value='Nieuw';
-  const rsel=document.getElementById('inst-resp');
-  rsel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option>${r}</option>`).join('');
-  document.getElementById('inst-modal-overlay').classList.add('open');
+// ── OPVOLGING SIDEBAR ──
+function instRenderSidebar(){
+  // Aankomende installaties
+  const sideEl=document.getElementById('inst-opvolg-sidebar');
+  if(sideEl){
+    const komend=installaties.filter(i=>i.datumInst&&i.datumInst>=today()).sort((a,b)=>a.datumInst.localeCompare(b.datumInst)).slice(0,6);
+    if(!komend.length){sideEl.innerHTML='<div style="font-size:12px;color:var(--tx3)">Geen geplande installaties</div>';
+    }else{
+      sideEl.innerHTML=komend.map(i=>{
+        const naam=(i.voornaam||i.naam||'')+(i.achternaam?' '+i.achternaam:'');
+        const diff=Math.round((new Date(i.datumInst)-new Date(today()))/86400000);
+        const lbl=diff===0?'<span style="color:#854f0b;font-weight:700">Vandaag</span>':diff===1?'<span style="color:#854f0b;font-weight:700">Morgen</span>':i.datumInst;
+        return`<div onclick="instDossierOpen(${i.id})" style="padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer">
+          <div style="font-size:12px;font-weight:600;color:var(--tx)">${naam}</div>
+          <div style="font-size:11px;color:var(--tx3)">${lbl}${i.uurInst?' '+i.uurInst:''}${i.resp?' · '+i.resp:''}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+  // Aankomende keuringen
+  const keurEl=document.getElementById('inst-keur-sidebar');
+  if(keurEl){
+    const keur=installaties.filter(i=>i.datumKeur&&i.datumKeur>=today()).sort((a,b)=>a.datumKeur.localeCompare(b.datumKeur)).slice(0,6);
+    if(!keur.length){keurEl.innerHTML='<div style="font-size:12px;color:var(--tx3)">Geen geplande keuringen</div>';
+    }else{
+      keurEl.innerHTML=keur.map(i=>{
+        const naam=(i.voornaam||i.naam||'')+(i.achternaam?' '+i.achternaam:'');
+        const diff=Math.round((new Date(i.datumKeur)-new Date(today()))/86400000);
+        const lbl=diff===0?'<span style="color:#7b2d8b;font-weight:700">Vandaag</span>':diff===1?'<span style="color:#7b2d8b;font-weight:700">Morgen</span>':i.datumKeur;
+        return`<div onclick="instDossierOpen(${i.id})" style="padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer">
+          <div style="font-size:12px;font-weight:600;color:var(--tx)">${naam}</div>
+          <div style="font-size:11px;color:var(--tx3)">${lbl}${i.uurKeur?' '+i.uurKeur:''}${i.resp?' · '+i.resp:''}</div>
+        </div>`;
+      }).join('');
+    }
+  }
 }
 
-function instOpenEdit(id){
+// ── DOSSIER MODAL ──
+function instDossierOpen(id){
   const i=installaties.find(x=>x.id===id);if(!i)return;
-  instEditId=id;
-  document.getElementById('inst-modal-titel').textContent=i.naam||'Installatie';
-  document.getElementById('inst-del-btn').style.display='inline-flex';
-  document.getElementById('inst-naam').value=i.naam||'';
-  document.getElementById('inst-adres').value=i.adres||'';
-  document.getElementById('inst-tel').value=i.tel||'';
-  document.getElementById('inst-email').value=i.email||'';
-  document.getElementById('inst-notities').value=i.notities||'';
-  document.getElementById('inst-datum-inst').value=i.datumInst||'';
-  document.getElementById('inst-uur-inst').value=i.uurInst||'09:00';
-  document.getElementById('inst-datum-keur').value=i.datumKeur||'';
-  document.getElementById('inst-uur-keur').value=i.uurKeur||'14:00';
-  document.getElementById('inst-fase').value=i.fase||'Nieuw';
-  document.getElementById('inst-link-search').value=i.linkLabel||'';
-  document.getElementById('inst-link-id').value=i.linkId||'';
-  document.getElementById('inst-link-label').value=i.linkLabel||'';
-  const rsel=document.getElementById('inst-resp');
+  instDossierOpenId=id;
+  instCurrentFotos=[...(i.fotos||[])];
+  instCurrentDocs=[...(i.docs||[])];
+  instScreeningData={...(i.screening||{})};
+
+  document.getElementById('inst-dossier-titel').textContent=(i.voornaam||i.naam||'')+(i.achternaam?' '+i.achternaam:'');
+  document.getElementById('inst-dossier-del-btn').style.display='inline-flex';
+  document.getElementById('inst-dossier-fase').value=i.fase||'Nieuw';
+
+  // Vul installatie tab
+  document.getElementById('id-voornaam').value=i.voornaam||i.naam||'';
+  document.getElementById('id-achternaam').value=i.achternaam||'';
+  document.getElementById('id-project').value=i.project||'';
+  document.getElementById('id-adres').value=i.adres||'';
+  document.getElementById('id-tel').value=i.tel||'';
+  document.getElementById('id-email').value=i.email||'';
+  document.getElementById('id-datum-inst').value=i.datumInst||'';
+  document.getElementById('id-uur-inst').value=i.uurInst||'09:00';
+  document.getElementById('id-datum-keur').value=i.datumKeur||'';
+  document.getElementById('id-uur-keur').value=i.uurKeur||'14:00';
+  document.getElementById('id-link-search').value=i.linkLabel||'';
+  document.getElementById('id-link-id').value=i.linkId||'';
+  document.getElementById('id-link-label').value=i.linkLabel||'';
+
+  // Verantwoordelijke select
+  const rsel=document.getElementById('id-resp');
   rsel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option${r===i.resp?' selected':''}>${r}</option>`).join('');
-  document.getElementById('inst-modal-overlay').classList.add('open');
+
+  // Log
+  instLogRender(i.acties||[]);
+
+  // Screening tab
+  instScRender(i.screening||{});
+
+  // Documenten tab
+  instDocRender();
+
+  // Ticket info tab
+  instTicketInfoRender(i);
+
+  instDossierTab('installatie');
+  document.getElementById('inst-dossier-overlay').classList.add('open');
 }
 
-function instCloseModal(){document.getElementById('inst-modal-overlay').classList.remove('open');instEditId=null;}
+function instOpenNieuw(){
+  instDossierOpenId=null;
+  instCurrentFotos=[];
+  instCurrentDocs=[];
+  instScreeningData={};
+  document.getElementById('inst-dossier-titel').textContent='Nieuwe installatie';
+  document.getElementById('inst-dossier-del-btn').style.display='none';
+  document.getElementById('inst-dossier-fase').value='Nieuw';
+  ['id-voornaam','id-achternaam','id-project','id-adres','id-tel','id-email','id-link-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('id-link-id').value='';
+  document.getElementById('id-link-label').value='';
+  document.getElementById('id-datum-inst').value='';
+  document.getElementById('id-uur-inst').value='09:00';
+  document.getElementById('id-datum-keur').value='';
+  document.getElementById('id-uur-keur').value='14:00';
+  document.getElementById('id-link-dd').style.display='none';
+  const rsel=document.getElementById('id-resp');
+  rsel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option>${r}</option>`).join('');
+  instLogRender([]);
+  instScRender({});
+  instDocRender();
+  document.getElementById('inst-ticket-info-content').innerHTML='<div style="text-align:center;padding:2rem;color:var(--tx3)"><i class="ti ti-link-off" style="font-size:32px;display:block;margin-bottom:8px"></i>Geen koppeling. Sla eerst op en koppel een lead of project.</div>';
+  instDossierTab('installatie');
+  document.getElementById('inst-dossier-overlay').classList.add('open');
+}
 
-function instSave(){
-  const naam=document.getElementById('inst-naam').value.trim();
-  if(!naam){showToast('Naam is verplicht.');return;}
-  const datumInst=document.getElementById('inst-datum-inst').value;
-  const uurInst=document.getElementById('inst-uur-inst').value;
-  const datumKeur=document.getElementById('inst-datum-keur').value;
-  const uurKeur=document.getElementById('inst-uur-keur').value;
-  const fase=document.getElementById('inst-fase').value;
+function instDossierClose(){document.getElementById('inst-dossier-overlay').classList.remove('open');instDossierOpenId=null;}
+
+function instDossierTab(tab){
+  ['installatie','screening','documenten','ticket'].forEach(t=>{
+    document.getElementById('inst-dtab-'+t).classList.toggle('active',t===tab);
+    document.getElementById('inst-dtab-content-'+t).style.display=t===tab?'block':'none';
+  });
+}
+
+function instDossierFaseChange(fase){
+  const i=installaties.find(x=>x.id===instDossierOpenId);
+  if(!i)return;
+  i.fase=fase;
+  i.acties=i.acties||[];
+  i.acties.push({datum:today(),tekst:'Fase gewijzigd naar: '+fase});
+  instSaveToStorage();
+  instRenderBoard();
+  siOpvRender();
+}
+
+function instDossierSave(){
+  const voornaam=document.getElementById('id-voornaam').value.trim();
+  if(!voornaam){showToast('Voornaam is verplicht.');return;}
+  const existing=installaties.find(x=>x.id===instDossierOpenId);
+  const autoId=instNextId++;
   const data={
-    id:instEditId||instNextId++,
-    naam,
-    adres:document.getElementById('inst-adres').value.trim(),
-    tel:document.getElementById('inst-tel').value.trim(),
-    email:document.getElementById('inst-email').value.trim(),
-    resp:document.getElementById('inst-resp').value,
-    fase,
-    datumInst,uurInst,datumKeur,uurKeur,
-    notities:document.getElementById('inst-notities').value.trim(),
-    linkId:document.getElementById('inst-link-id').value,
-    linkLabel:document.getElementById('inst-link-label').value,
-    aangemaakt:today()
+    id: existing?existing.id:autoId,
+    voornaam,
+    achternaam: document.getElementById('id-achternaam').value.trim(),
+    naam: voornaam+' '+(document.getElementById('id-achternaam').value.trim()),
+    project: document.getElementById('id-project').value.trim(),
+    adres: document.getElementById('id-adres').value.trim(),
+    tel: document.getElementById('id-tel').value.trim(),
+    email: document.getElementById('id-email').value.trim(),
+    resp: document.getElementById('id-resp').value,
+    fase: document.getElementById('inst-dossier-fase').value,
+    datumInst: document.getElementById('id-datum-inst').value,
+    uurInst: document.getElementById('id-uur-inst').value,
+    datumKeur: document.getElementById('id-datum-keur').value,
+    uurKeur: document.getElementById('id-uur-keur').value,
+    linkId: document.getElementById('id-link-id').value,
+    linkLabel: document.getElementById('id-link-label').value,
+    screening: instScCollect(),
+    fotos: [...instCurrentFotos],
+    docs: [...instCurrentDocs],
+    acties: existing?existing.acties||[]:[]
   };
-  if(instEditId){const idx=installaties.findIndex(x=>x.id===instEditId);if(idx>-1)installaties[idx]=data;}
-  else installaties.push(data);
-  // Auto-agenda: installatie
-  if(datumInst){
+  if(existing){Object.assign(existing,data);}
+  else{installaties.push(data);}
+
+  // Agenda: installatie
+  if(data.datumInst){
     const agId='inst-'+data.id;
     agAfspraken=agAfspraken.filter(a=>a.id!==agId);
-    agAfspraken.push({id:agId,titel:'Installatie: '+naam,datum:datumInst,uur:uurInst,type:'Installatie',resp:data.resp,notitie:data.adres,linkId:'inst-'+data.id,linkLabel:naam,linkType:'installatie'});
+    agAfspraken.push({id:agId,titel:'Installatie: '+data.naam,datum:data.datumInst,uur:data.uurInst,type:'Installatie',resp:data.resp,notitie:data.adres,linkId:'inst-'+data.id,linkLabel:data.naam,linkType:'installatie'});
   }
-  // Auto-agenda: keuring
-  if(datumKeur){
+  // Agenda: keuring
+  if(data.datumKeur){
     const agId='keur-'+data.id;
     agAfspraken=agAfspraken.filter(a=>a.id!==agId);
-    agAfspraken.push({id:agId,titel:'Keuring: '+naam,datum:datumKeur,uur:uurKeur,type:'Keuring',resp:data.resp,notitie:data.adres,linkId:'keur-'+data.id,linkLabel:naam,linkType:'keuring'});
+    agAfspraken.push({id:agId,titel:'Keuring: '+data.naam,datum:data.datumKeur,uur:data.uurKeur,type:'Keuring',resp:data.resp,notitie:data.adres,linkId:'keur-'+data.id,linkLabel:data.naam,linkType:'keuring'});
   }
   try{localStorage.setItem('blitz_ag',JSON.stringify(agAfspraken));}catch{}
   instSaveToStorage();
-  instCloseModal();
+  instDossierClose();
   instRenderBoard();
   siOpvRender();
-  showToast(instEditId?'Installatie opgeslagen.':'Installatie aangemaakt.');
+  showToast(existing?'Dossier opgeslagen ✓':'Installatie aangemaakt ✓');
 }
 
-function instDelete(){
-  if(!instEditId||!confirm('Installatie verwijderen?'))return;
-  installaties=installaties.filter(x=>x.id!==instEditId);
-  // Remove agenda entries
-  agAfspraken=agAfspraken.filter(a=>a.id!=='inst-'+instEditId&&a.id!=='keur-'+instEditId);
+function instDossierDelete(){
+  if(!instDossierOpenId||!confirm('Installatie-dossier verwijderen?'))return;
+  installaties=installaties.filter(x=>x.id!==instDossierOpenId);
+  agAfspraken=agAfspraken.filter(a=>a.id!=='inst-'+instDossierOpenId&&a.id!=='keur-'+instDossierOpenId);
   try{localStorage.setItem('blitz_ag',JSON.stringify(agAfspraken));}catch{}
   instSaveToStorage();
-  instCloseModal();
+  instDossierClose();
   instRenderBoard();
   siOpvRender();
-  showToast('Installatie verwijderd.');
+  showToast('Dossier verwijderd.');
 }
 
-// ── INSTALLATIE LINK SEARCH ──
-function instLinkSearch(q){
-  const dd=document.getElementById('inst-link-dd');
+// ── LOG ──
+function instLogRender(acties){
+  const el=document.getElementById('id-log-list');if(!el)return;
+  if(!acties.length){el.innerHTML='<div style="font-size:12px;color:var(--tx3)">Nog geen activiteiten.</div>';return;}
+  el.innerHTML=[...acties].reverse().map((a,i)=>`<div class="tl-item">
+    <div class="tl-datum">${a.datum||''}</div>
+    <div class="tl-tekst">${a.tekst}</div>
+    <button class="tl-del" onclick="instLogDel(${acties.length-1-i})"><i class="ti ti-x"></i></button>
+  </div>`).join('');
+}
+function instLogAdd(){
+  const txt=document.getElementById('id-log-tekst').value.trim();
+  if(!txt)return;
+  const i=installaties.find(x=>x.id===instDossierOpenId);
+  if(i){i.acties=i.acties||[];i.acties.push({datum:today(),tekst:txt});instLogRender(i.acties);instSaveToStorage();}
+  else{
+    // Temp log for new entries — will be saved on instDossierSave
+  }
+  document.getElementById('id-log-tekst').value='';
+}
+function instLogDel(idx){
+  const i=installaties.find(x=>x.id===instDossierOpenId);
+  if(!i)return;
+  i.acties=i.acties||[];
+  i.acties.splice(idx,1);
+  instLogRender(i.acties);
+  instSaveToStorage();
+}
+
+// ── SCREENING ──
+function instScToggle(btn,val){
+  const key=btn.dataset.sc;
+  document.querySelectorAll(`[data-sc="${key}"]`).forEach(b=>b.className='toggle-opt');
+  btn.className='toggle-opt active-sel';
+  instScreeningData[key]=val;
+}
+function instScRender(sc){
+  instScreeningData={...sc};
+  document.querySelectorAll('[data-sc]').forEach(btn=>{
+    const key=btn.dataset.sc;
+    const val=sc[key];
+    const myVal=btn.textContent.toLowerCase().trim()==='ja'?'ja':btn.textContent.toLowerCase().trim()==='nee'?'nee':'nader';
+    btn.className='toggle-opt'+(val===myVal?' active-sel':'');
+  });
+  document.getElementById('inst-sc-locatie').value=sc.locatie||'';
+  document.getElementById('inst-sc-afstand').value=sc.afstand||'';
+  document.getElementById('inst-sc-type-paal').value=sc.typePaal||'';
+  document.getElementById('inst-sc-opm').value=sc.opmerkingen||'';
+  // Fotos
+  instFotoRender();
+}
+function instScCollect(){
+  const sc={...instScreeningData};
+  sc.locatie=document.getElementById('inst-sc-locatie').value;
+  sc.afstand=document.getElementById('inst-sc-afstand').value;
+  sc.typePaal=document.getElementById('inst-sc-type-paal').value;
+  sc.opmerkingen=document.getElementById('inst-sc-opm').value.trim();
+  sc.fotos=instCurrentFotos;
+  return sc;
+}
+
+// Foto upload
+function instFotoSelected(e){
+  const files=e.target.files;if(!files||!files.length)return;
+  Array.from(files).forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{instCurrentFotos.push({naam:file.name,data:ev.target.result});instFotoRender();};
+    reader.readAsDataURL(file);
+  });
+  e.target.value='';
+}
+function instFotoRender(){
+  const el=document.getElementById('inst-foto-grid');if(!el)return;
+  el.innerHTML=instCurrentFotos.map((f,i)=>`<div class="foto-item">
+    <img src="${f.data}" alt="${f.naam}">
+    <button class="foto-del" onclick="instFotoDel(${i})"><i class="ti ti-x"></i></button>
+    <div class="foto-label">${f.naam.slice(0,18)}</div>
+  </div>`).join('');
+}
+function instFotoDel(i){instCurrentFotos.splice(i,1);instFotoRender();}
+
+// ── DOCUMENTEN ──
+function instDocDragOver(e){e.preventDefault();document.getElementById('inst-doc-drop').classList.add('drag-over');}
+function instDocDragLeave(){document.getElementById('inst-doc-drop').classList.remove('drag-over');}
+function instDocDrop(e){e.preventDefault();instDocDragLeave();instHandleFiles(e.dataTransfer.files);}
+function instDocSelected(e){instHandleFiles(e.target.files);e.target.value='';}
+function instHandleFiles(files){
+  if(!files||!files.length)return;
+  Array.from(files).forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{instCurrentDocs.push({naam:file.name,type:file.type,size:file.size,data:ev.target.result});instDocRender();};
+    reader.readAsDataURL(file);
+  });
+}
+function instDocRender(){
+  const el=document.getElementById('inst-doc-list');if(!el)return;
+  if(!instCurrentDocs.length){el.innerHTML='';return;}
+  el.innerHTML=instCurrentDocs.map((d,i)=>{
+    const isImg=d.type&&d.type.startsWith('image/');
+    const preview=isImg?`<img src="${d.data}" class="attach-thumb">`:`<div class="attach-icon"><i class="ti ti-file"></i></div>`;
+    const size=d.size?(d.size>1048576?(d.size/1048576).toFixed(1)+' MB':(d.size/1024).toFixed(0)+' KB'):'';
+    return`<div class="attach-item">${preview}<div class="attach-name">${d.naam}</div><span style="font-size:10px;color:var(--tx3)">${size}</span>
+      <a href="${d.data}" download="${d.naam}" class="btn sm"><i class="ti ti-download"></i></a>
+      <button class="btn sm danger" onclick="instDocDel(${i})"><i class="ti ti-x"></i></button></div>`;
+  }).join('');
+}
+function instDocDel(i){instCurrentDocs.splice(i,1);instDocRender();}
+
+// ── TICKET INFO TAB ──
+function instTicketInfoRender(inst){
+  const el=document.getElementById('inst-ticket-info-content');if(!el)return;
+  const linkId=inst.linkId||'';
+  if(!linkId){el.innerHTML='<div style="text-align:center;padding:2rem;color:var(--tx3)"><i class="ti ti-link-off" style="font-size:32px;display:block;margin-bottom:8px"></i>Geen koppeling ingesteld.</div>';return;}
+
+  let html='<div style="font-size:12px;color:var(--tx3);margin-bottom:10px">Gekoppeld aan: <strong style="color:var(--tx)">'+(inst.linkLabel||linkId)+'</strong></div>';
+
+  if(linkId.startsWith('b2c-')){
+    const leadId=parseInt(linkId.replace('b2c-',''));
+    const l=b2cLeads.find(x=>x.id===leadId);
+    if(l){
+      html+=`<div style="background:var(--bg2);border-radius:var(--rl);padding:1rem">
+        <div style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;margin-bottom:10px">${b2cNaam(l)}</div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Status</span><span class="b2c-info-val"><span class="badge ${b2cBadgeSt(l.status)}">${l.status}</span></span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Warmte</span><span class="b2c-info-val">${l.warmte||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Telefoon</span><span class="b2c-info-val">${l.tel||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">E-mail</span><span class="b2c-info-val">${l.email||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Adres</span><span class="b2c-info-val">${l.adres||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Verantwoordelijke</span><span class="b2c-info-val">${l.resp||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Bron</span><span class="b2c-info-val">${l.bron||'—'}</span></div>
+        ${l.offertenr?`<div class="b2c-info-row"><span class="b2c-info-key">Offertenr</span><span class="b2c-info-val">${l.offertenr}</span></div>`:''}
+        ${l.notities?`<div class="b2c-notitie" style="margin-top:10px">${l.notities}</div>`:''}
+        ${(l.acties&&l.acties.length)?`<div style="margin-top:12px;border-top:1px solid var(--bd);padding-top:10px">
+          <div style="font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Activiteiten lead</div>
+          <div class="b2c-tl">${[...l.acties].slice(-5).reverse().map(a=>`<div class="b2c-tl-item"><div class="b2c-tl-date">${a.datum}</div><div class="b2c-tl-text">${a.tekst}</div></div>`).join('')}</div>
+        </div>`:''}
+        <div style="margin-top:12px"><button class="btn sm" onclick="instDossierClose();b2cOpenDetail(${l.id})"><i class="ti ti-external-link"></i> Volledig dossier openen</button></div>
+      </div>`;
+    } else {
+      html+='<div style="color:var(--tx3);font-size:13px">Lead niet gevonden (mogelijk verwijderd).</div>';
+    }
+  } else if(linkId.startsWith('b2b-')){
+    const projId=linkId.replace('b2b-','');
+    const p=projects.find(x=>x.id===projId||x._rowid===projId);
+    if(p){
+      html+=`<div style="background:var(--bg2);border-radius:var(--rl);padding:1rem">
+        <div style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;margin-bottom:10px">${p.naam||'—'}</div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Klant</span><span class="b2c-info-val">${p.klant||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Contactpersoon</span><span class="b2c-info-val">${p.contact||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">GSM</span><span class="b2c-info-val">${p.contactgsm||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">E-mail</span><span class="b2c-info-val">${p.contactemail||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Adres</span><span class="b2c-info-val">${p.adres||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Product</span><span class="b2c-info-val">${p.product||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Offertenr</span><span class="b2c-info-val">${p.offertenr||'—'}</span></div>
+        <div class="b2c-info-row"><span class="b2c-info-key">Verantwoordelijke</span><span class="b2c-info-val">${p.resp||'—'}</span></div>
+        ${p.info?`<div class="b2c-notitie" style="margin-top:10px">${p.info}</div>`:''}
+      </div>`;
+    } else {
+      html+='<div style="color:var(--tx3);font-size:13px">Project niet gevonden.</div>';
+    }
+  }
+  el.innerHTML=html;
+}
+
+// ── LINK SEARCH (dossier modal) ──
+function instLinkSearch2(q){
+  const dd=document.getElementById('id-link-dd');
   if(!q||q.length<1){dd.style.display='none';return;}
   const ql=q.toLowerCase();
   const results=[];
   b2cLeads.filter(l=>l.status!=='Verloren').forEach(l=>{
     const n=b2cNaam(l);
     if(n.toLowerCase().includes(ql)||(l.adres||'').toLowerCase().includes(ql))
-      results.push({id:'b2c-'+l.id,label:n,sub:l.adres||l.tel||'',type:'B2C Lead',color:'#00805e',bg:'rgba(0,223,163,.12)'});
+      results.push({id:'b2c-'+l.id,label:n,sub:l.adres||l.tel||'',type:'B2C Lead'});
   });
   projects.forEach(p=>{
     if((p.naam||'').toLowerCase().includes(ql)||(p.klant||'').toLowerCase().includes(ql))
-      results.push({id:'b2b-'+(p.id||p._rowid||p.naam),label:p.naam||'',sub:p.klant||'',type:'B2B Project',color:'#3c3489',bg:'rgba(83,74,183,.12)'});
+      results.push({id:'b2b-'+(p.id||p._rowid||p.naam),label:p.naam||'',sub:p.klant||'',type:'B2B Project'});
   });
   if(!results.length){dd.innerHTML='<div style="padding:10px;font-size:12px;color:var(--tx3)">Geen resultaten</div>';dd.style.display='block';return;}
-  const sliced=results.slice(0,6);
-  dd.innerHTML=sliced.map((r,i)=>`<div data-li="${i}" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bd);font-size:12px" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''"><strong>${r.label}</strong> <span style="font-size:10px;color:${r.color}">${r.type}</span><br><span style="color:var(--tx3)">${r.sub}</span></div>`).join('');
-  dd._res=sliced;
-  dd.querySelectorAll('[data-li]').forEach(el=>{el.addEventListener('click',function(){const r=dd._res[parseInt(this.dataset.li)];if(r){document.getElementById('inst-link-search').value=r.label;document.getElementById('inst-link-id').value=r.id;document.getElementById('inst-link-label').value=r.label;dd.style.display='none';}});});
+  dd.innerHTML=results.slice(0,6).map((r,i)=>`<div data-li="${i}" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bd);font-size:12px" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''"><strong>${r.label}</strong> <span style="color:var(--tx3);font-size:10px">${r.type}</span><br><span style="color:var(--tx3)">${r.sub}</span></div>`).join('');
+  dd._res=results.slice(0,6);
+  dd.querySelectorAll('[data-li]').forEach(el=>{el.addEventListener('click',function(){const r=dd._res[parseInt(this.dataset.li)];if(r){document.getElementById('id-link-search').value=r.label;document.getElementById('id-link-id').value=r.id;document.getElementById('id-link-label').value=r.label;dd.style.display='none';}});});
   dd.style.display='block';
 }
-document.addEventListener('click',function(e){const dd=document.getElementById('inst-link-dd');if(dd&&!dd.contains(e.target)&&e.target.id!=='inst-link-search')dd.style.display='none';});
+document.addEventListener('click',function(e){
+  const dd=document.getElementById('id-link-dd');
+  if(dd&&!dd.contains(e.target)&&e.target.id!=='id-link-search')dd.style.display='none';
+});
+
+// ── OLD SIMPLE LINK SEARCH (doorstuur) ──
+function instLinkSearch(q){
+  const dd=document.getElementById('inst-link-dd');
+  if(!dd||!q||q.length<1){if(dd)dd.style.display='none';return;}
+  instLinkSearch2.call({},q); // reuse same logic but use old dd
+  // Direct implementation for old overlay (doorsturen)
+  const ql=q.toLowerCase();
+  const results=[];
+  b2cLeads.filter(l=>l.status!=='Verloren').forEach(l=>{
+    const n=b2cNaam(l);
+    if(n.toLowerCase().includes(ql)||(l.adres||'').toLowerCase().includes(ql))
+      results.push({id:'b2c-'+l.id,label:n,sub:l.adres||l.tel||''});
+  });
+  projects.forEach(p=>{
+    if((p.naam||'').toLowerCase().includes(ql)||(p.klant||'').toLowerCase().includes(ql))
+      results.push({id:'b2b-'+(p.id||p._rowid),label:p.naam||'',sub:p.klant||''});
+  });
+  if(!results.length){dd.innerHTML='<div style="padding:10px;font-size:12px;color:var(--tx3)">Geen resultaten</div>';dd.style.display='block';return;}
+  dd.innerHTML=results.slice(0,6).map((r,i)=>`<div data-li2="${i}" style="padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--bd)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''"><strong>${r.label}</strong><br><span style="color:var(--tx3)">${r.sub}</span></div>`).join('');
+  dd._res2=results.slice(0,6);
+  dd.querySelectorAll('[data-li2]').forEach(el=>{el.addEventListener('click',function(){const r=dd._res2[parseInt(this.dataset.li2)];if(r){document.getElementById('inst-link-search').value=r.label;document.getElementById('inst-link-id').value=r.id;document.getElementById('inst-link-label').value=r.label;dd.style.display='none';}});});
+  dd.style.display='block';
+}
 
 // ── DOORSTUREN NAAR INSTALLATIES ──
 function doorstuurNaarInstallatie(bron, id){
-  // bron: 'b2c' or 'b2b'
-  let naam='',adres='',tel='',email='',resp='',linkId='',linkLabel='';
+  let voornaam='',achternaam='',adres='',tel='',email='',resp='',linkId='',linkLabel='',project='';
   if(bron==='b2c'){
     const l=b2cLeads.find(x=>x.id===id);if(!l)return;
-    naam=b2cNaam(l);adres=l.adres||'';tel=l.tel||'';email=l.email||'';resp=l.resp||'';
-    linkId='b2c-'+l.id;linkLabel=naam;
+    voornaam=l.voornaam||'';achternaam=l.achternaam||'';adres=l.adres||'';tel=l.tel||'';email=l.email||'';resp=l.resp||'';
+    linkId='b2c-'+l.id;linkLabel=b2cNaam(l);
   } else {
     const p=projects.find(x=>x.id===id||x._rowid===id);if(!p)return;
-    naam=p.naam||p.klant||'';adres=p.adres||'';tel=p.contactgsm||'';email=p.contactemail||'';resp=p.resp||'';
-    linkId='b2b-'+(p.id||p._rowid);linkLabel=naam;
+    voornaam=p.contact||p.naam||'';adres=p.adres||'';tel=p.contactgsm||'';email=p.contactemail||'';resp=p.resp||'';
+    project=p.naam||'';
+    linkId='b2b-'+(p.id||p._rowid);linkLabel=p.naam||'';
   }
-  // Pre-fill modal
-  instEditId=null;
-  document.getElementById('inst-modal-titel').textContent='Doorsturen → Installatie';
-  document.getElementById('inst-del-btn').style.display='none';
-  document.getElementById('inst-naam').value=naam;
-  document.getElementById('inst-adres').value=adres;
-  document.getElementById('inst-tel').value=tel;
-  document.getElementById('inst-email').value=email;
-  document.getElementById('inst-link-search').value=linkLabel;
-  document.getElementById('inst-link-id').value=linkId;
-  document.getElementById('inst-link-label').value=linkLabel;
-  document.getElementById('inst-fase').value='Nieuw';
-  document.getElementById('inst-datum-inst').value='';
-  document.getElementById('inst-datum-keur').value='';
-  document.getElementById('inst-notities').value='';
-  const rsel=document.getElementById('inst-resp');
+  // Open dossier modal voor nieuwe installatie
+  instDossierOpenId=null;instCurrentFotos=[];instCurrentDocs=[];instScreeningData={};
+  document.getElementById('inst-dossier-titel').textContent='Doorsturen → Installatie';
+  document.getElementById('inst-dossier-del-btn').style.display='none';
+  document.getElementById('inst-dossier-fase').value='Nieuw';
+  document.getElementById('id-voornaam').value=voornaam;
+  document.getElementById('id-achternaam').value=achternaam;
+  document.getElementById('id-project').value=project;
+  document.getElementById('id-adres').value=adres;
+  document.getElementById('id-tel').value=tel;
+  document.getElementById('id-email').value=email;
+  document.getElementById('id-link-search').value=linkLabel;
+  document.getElementById('id-link-id').value=linkId;
+  document.getElementById('id-link-label').value=linkLabel;
+  const rsel=document.getElementById('id-resp');
   rsel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option${r===resp?' selected':''}>${r}</option>`).join('');
-  document.getElementById('inst-modal-overlay').classList.add('open');
+  instLogRender([]);instScRender({});instDocRender();
+  document.getElementById('inst-ticket-info-content').innerHTML='<div style="text-align:center;padding:2rem;color:var(--tx3)">Sla eerst op om ticket info te laden.</div>';
+  instDossierTab('installatie');
+  document.getElementById('inst-dossier-overlay').classList.add('open');
   showTab('installaties');
 }
 
 // ── SI OPVOLGING RENDER ──
 function siOpvRender(){
-  // Fase filter pills
   const faseEl=document.getElementById('si-opv-pills-fase');
   if(faseEl){
     const fases=['alle',...INST_FASES];
-    faseEl.innerHTML=fases.map(f=>`<button class="pill${siOpvFaseFilter===f?' active':''}${f==='alle'?' all':''}" onclick="siOpvSetFase('${f.replace(/&/g,'&amp;')}')">${f==='alle'?'Alle fases':f}</button>`).join('');
+    faseEl.innerHTML=fases.map(f=>`<button class="pill${siOpvFaseFilter===f?' active':''}${f==='alle'?' all':''}" onclick="siOpvSetFase('${encodeURIComponent(f)}')">${f==='alle'?'Alle fases':f}</button>`).join('');
   }
-  // Resp filter pills
   const respEl=document.getElementById('si-opv-pills-resp');
   if(respEl){
     const namen=['alle',...new Set(installaties.map(i=>i.resp).filter(Boolean))];
     respEl.innerHTML=namen.map(r=>`<button class="pill${siOpvRespFilter===r?' active':''}${r==='alle'?' all':''}" onclick="siOpvSetResp('${r}')">${r==='alle'?'Iedereen':r}</button>`).join('');
   }
-  // List
   const el=document.getElementById('si-opvolg-list');if(!el)return;
   let list=installaties.filter(i=>{
     if(siOpvFaseFilter!=='alle'&&i.fase!==siOpvFaseFilter)return false;
@@ -3861,32 +4289,31 @@ function siOpvRender(){
     return true;
   }).sort((a,b)=>(a.datumInst||'9999').localeCompare(b.datumInst||'9999'));
   if(!list.length){el.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--tx3)"><i class="ti ti-list-check" style="font-size:36px;display:block;margin-bottom:10px"></i>Geen installaties gevonden</div>`;return;}
-  const FASE_KLEUR={'Nieuw':'#00DFA3','Info verkrijgen':'#f59e0b','Screening ok':'#3b82f6','Installatie gepland':'#e85d04','Installatie & Keuring gepland':'#7b2d8b'};
+  const FKLEUR={'Nieuw':'#00DFA3','Info verkrijgen':'#f59e0b','Screening ok':'#3b82f6','Installatie gepland':'#e85d04','Installatie & Keuring gepland':'#7b2d8b'};
   el.innerHTML=list.map(i=>{
-    const fk=FASE_KLEUR[i.fase]||'#888';
+    const naam=(i.voornaam||i.naam||'')+(i.achternaam?' '+i.achternaam:'');
+    const fk=FKLEUR[i.fase]||'#888';
     const instStr=i.datumInst?(i.datumInst+(i.uurInst?' '+i.uurInst:'')):'—';
     const keurStr=i.datumKeur?(i.datumKeur+(i.uurKeur?' '+i.uurKeur:'')):'—';
     const isLate=i.datumInst&&i.datumInst<today();
-    return`<div class="si-opvolg-row" onclick="instOpenEdit(${i.id})" style="${isLate?'border-left:3px solid #a32d2d;':''}">
-      <div>
-        <div style="font-weight:600;font-size:13px">${i.naam||'—'}</div>
-        <div style="font-size:11px;color:var(--tx3)">${i.adres||i.tel||''}</div>
-      </div>
+    return`<div class="si-opvolg-row" onclick="instDossierOpen(${i.id})" style="${isLate?'border-left:3px solid #a32d2d;':''}">
+      <div><div style="font-weight:600;font-size:13px">${naam||'—'}</div><div style="font-size:11px;color:var(--tx3)">${i.project||i.adres||''}</div></div>
       <div><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:${fk}20;color:${fk}">${i.fase||'—'}</span></div>
       <div style="font-size:12px;color:${isLate?'#a32d2d':'var(--tx2)'}">${instStr}</div>
       <div style="font-size:12px;color:var(--tx2)">${keurStr}</div>
       <div style="font-size:12px">${i.resp||'—'}</div>
-      <div><button class="btn sm" onclick="event.stopPropagation();instOpenEdit(${i.id})"><i class="ti ti-edit"></i></button></div>
+      <div><button class="btn sm" onclick="event.stopPropagation();instDossierOpen(${i.id})"><i class="ti ti-external-link"></i></button></div>
     </div>`;
   }).join('');
 }
-function siOpvSetFase(f){siOpvFaseFilter=f;siOpvRender();}
+function siOpvSetFase(f){siOpvFaseFilter=decodeURIComponent(f);siOpvRender();}
 function siOpvSetResp(r){siOpvRespFilter=r;siOpvRender();}
 
 // ── INSTALLATIES IN AGENDA ──
 function agGetInstAfspraken(){
   return agAfspraken.filter(a=>a.type==='Installatie'||a.type==='Keuring');
 }
+
 
 // ── INIT ──────────────────────────────────────────────
 (function init(){
@@ -3906,7 +4333,7 @@ function agGetInstAfspraken(){
     const safe=(id,fn)=>{const el=document.getElementById(id);if(el)el.addEventListener('click',function(e){if(e.target===this)fn();});};
     safe('crm-complete-overlay',closeCrmComplete);
     safe('ag-nieuw-overlay',agCloseNieuw);
-    safe('inst-modal-overlay',instCloseModal);
+    safe('inst-dossier-overlay',instDossierClose);
     safe('b2c-gewonnen-keuze-overlay',b2cSluitGewonnenKeuze);
     safe('b2c-installateur-overlay',b2cSluitInstallateur);
     safe('b2c-afvink-overlay',b2cSluitAfvink);
@@ -4279,11 +4706,13 @@ function b2cBevestigGewonnenEigen(){
   installaties.push(nieuwInst);
   instSaveToStorage();
 
-  // 6. Navigeer naar installatiedashboard + toast
+  // 6. Navigeer naar installatiedashboard + open dossier
   showTab('installaties');
   setTimeout(()=>{
+    instRenderBoard();
+    instDossierOpen(nieuwInst.id);
     showToast('🎉 Gewonnen! Installatie aangemaakt voor '+b2cNaam(l)+' ✓');
-  },200);
+  },150);
 }
 
 function b2cBevestigGewonnenPartner(){
