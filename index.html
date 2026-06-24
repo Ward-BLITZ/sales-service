@@ -4697,8 +4697,7 @@ function b2cBevestigGewonnenEigen(){
     uurInst: '09:00',
     datumKeur: '',
     uurKeur: '14:00',
-    notities: 'Doorgestuurd vanuit B2C lead (gewonnen op '+today()+')'+(l.notities?'
-'+l.notities:''),
+    notities: 'Doorgestuurd vanuit B2C lead (gewonnen op '+today()+')'+(l.notities?' | '+l.notities:''),
     linkId: 'b2c-'+leadId,
     linkLabel: b2cNaam(l),
     aangemaakt: today()
