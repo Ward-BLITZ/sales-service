@@ -347,6 +347,16 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
 .si-opvolg-row:hover{border-color:var(--green)}
 
 
+
+/* NAV DROPDOWNS */
+.nav-dropdown{position:relative;display:inline-flex;align-items:stretch}
+.nav-dd-trigger{display:inline-flex;align-items:center;gap:4px}
+.nav-dd-menu{display:none;position:absolute;top:100%;left:0;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--rl);box-shadow:0 8px 32px rgba(0,0,0,.14);z-index:200;min-width:210px;padding:5px 0;animation:ddFade .12s ease}
+.nav-dd-menu.open{display:block}
+.nav-dd-item{font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--tx2);background:none;border:none;width:100%;text-align:left;padding:9px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s}
+.nav-dd-item:hover{background:var(--bg2);color:var(--tx)}
+.nav-dd-item.active{color:var(--green);font-weight:600}
+@keyframes ddFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -4604,21 +4614,22 @@ function agGetInstAfspraken(){
       }
     });
   }
-  document.getElementById('resp-modal').addEventListener('click',function(e){if(e.target===this)closeRespModal();});
-  document.getElementById('invite-modal').addEventListener('click',function(e){if(e.target===this)closeInviteModal();});
-  document.getElementById('crm-modal').addEventListener('click',function(e){if(e.target===this)closeCrmModal();});
   // Gebruik setTimeout zodat elementen die later in de HTML staan zeker bestaan
   setTimeout(()=>{
     const safe=(id,fn)=>{const el=document.getElementById(id);if(el)el.addEventListener('click',function(e){if(e.target===this)fn();});};
+    safe('invite-modal',closeInviteModal);
+    safe('crm-modal',closeCrmModal);
     safe('crm-complete-overlay',closeCrmComplete);
     safe('ag-nieuw-overlay',agCloseNieuw);
     safe('b2c-installateur-overlay',b2cSluitInstallateur);
     safe('b2c-afvink-overlay',b2cSluitAfvink);
     safe('prosp-modal-overlay',prospCloseModal);
     safe('user-edit-modal',closeUserEditModal);
-    safe('invite-modal',closeInviteModal);
     safe('inst-dossier-overlay',instDossierClose);
     safe('b2c-gewonnen-keuze-overlay',b2cSluitGewonnenKeuze);
+    safe('b2c-detail-overlay', function(){if(b2cOpenLeadId)b2cSaveLeadEdit();else b2cCloseDetail();});
+    safe('b2c-nieuw-overlay',b2cCloseNieuw);
+    safe('b2c-visit-overlay',b2cCloseVisitModal);
   },0);
 
   // Herstel lokale backup
@@ -6096,19 +6107,7 @@ function b2cRenderAankomende(){
   }).join('');
 }
 
-// Backdrop click: auto-save als er wijzigingen zijn, anders gewoon sluiten
-document.getElementById('b2c-detail-overlay').addEventListener('click',function(e){
-  if(e.target!==this)return;
-  // Probeer op te slaan als er een open lead is
-  if(b2cOpenLeadId){
-    b2cSaveLeadEdit();  // slaat op én sluit
-  } else {
-    b2cCloseDetail();
-  }
-});
-document.getElementById('b2c-nieuw-overlay').addEventListener('click',function(e){if(e.target===this)b2cCloseNieuw();});
-document.getElementById('b2c-visit-overlay').addEventListener('click',function(e){if(e.target===this)b2cCloseVisitModal();});
-document.getElementById('b2c-doorstuur-overlay').addEventListener('click',function(e){if(e.target===this){e.currentTarget.classList.remove('open');}});
+
 
 // ══════════════════════════════════════════════
 // TIJDLIJN (Project modal)
