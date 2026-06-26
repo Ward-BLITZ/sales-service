@@ -455,6 +455,8 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
     <div class="nav-dd-menu" id="dd-si-menu">
       <button class="nav-dd-item" id="tab-installaties" onclick="showTab('installaties');closeAllNavDd()"><i class="ti ti-layout-columns"></i> Dashboard installaties</button>
       <button class="nav-dd-item" id="tab-si-opvolging" onclick="showTab('si-opvolging');closeAllNavDd()"><i class="ti ti-list-check"></i> Opvolging</button>
+      <button class="nav-dd-item" id="tab-si-afgerond" onclick="showTab('si-afgerond');closeAllNavDd()"><i class="ti ti-circle-check"></i> Afgerond</button>
+      <button class="nav-dd-item" id="tab-si-agenda" onclick="showTab('si-agenda');closeAllNavDd()"><i class="ti ti-calendar-event"></i> Agenda service</button>
     </div>
   </div>
 
@@ -522,6 +524,11 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
       </div>
       <div class="cal-grid" id="cal-grid"></div>
       <div class="cal-ev-section" id="cal-events" style="display:none"></div>
+      <!-- B2B OPVOLGINGEN SIDEBAR (nieuw systeem) -->
+      <div style="border-top:1px solid var(--bd);margin-top:14px;padding-top:12px">
+        <div style="font-family:'Poppins',sans-serif;font-size:12px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:5px"><i class="ti ti-calendar-check" style="color:var(--green)"></i> Opvolgingen</div>
+        <div id="b2b-dash-opvolgingen"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -690,9 +697,67 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
   <div id="si-opvolg-list"></div>
 </div>
 
+<!-- AFGEROND INSTALLATIES -->
+<div id="pane-si-afgerond" class="page" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:1.25rem">
+    <div>
+      <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:700"><i class="ti ti-circle-check" style="color:#639922;margin-right:6px"></i>Afgeronde installaties</div>
+      <div style="font-size:12px;color:var(--tx2)">Installaties en keuringen volledig afgerond</div>
+    </div>
+    <div class="pills" id="si-afgerond-pills-resp"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1.8fr 1.2fr 1fr 1fr 1fr 100px;gap:10px;padding:5px 14px;font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">
+    <span>Naam / Project</span><span>Afgerond op</span><span>Installatie</span><span>Keuring</span><span>Verantwoordelijke</span><span></span>
+  </div>
+  <div id="si-afgerond-list"></div>
+</div>
+
+<!-- SERVICE AGENDA -->
+<div id="pane-si-agenda" class="page" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:1.25rem">
+    <div>
+      <div style="font-family:'Poppins',sans-serif;font-size:15px;font-weight:700"><i class="ti ti-calendar-event" style="color:#e85d04;margin-right:6px"></i>Agenda — Service & Installatie</div>
+      <div style="font-size:12px;color:var(--tx2)">Geplande installatie- en keuringsmomenten</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="pills" id="si-ag-pills-resp"></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button onclick="siAgCalPrev()" class="btn sm"><i class="ti ti-chevron-left"></i></button>
+        <span id="si-ag-maand-label" style="font-size:13px;font-weight:700;min-width:130px;text-align:center"></span>
+        <button onclick="siAgCalNext()" class="btn sm"><i class="ti ti-chevron-right"></i></button>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:20px;align-items:flex-start">
+    <!-- Kalender -->
+    <div style="flex:0 0 340px;background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:16px">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px">
+        <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tx3);padding:4px">Ma</div>
+        <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tx3);padding:4px">Di</div>
+        <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tx3);padding:4px">Wo</div>
+        <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tx3);padding:4px">Do</div>
+        <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tx3);padding:4px">Vr</div>
+        <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tx3);padding:4px">Za</div>
+        <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tx3);padding:4px">Zo</div>
+      </div>
+      <div id="si-ag-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
+    </div>
+    <!-- Dag detail -->
+    <div style="flex:1;background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:16px;min-height:300px">
+      <div style="font-family:'Poppins',sans-serif;font-size:13px;font-weight:700;margin-bottom:12px" id="si-ag-dag-titel">Selecteer een dag</div>
+      <div id="si-ag-dag-items"><div style="font-size:12px;color:var(--tx3)">Klik op een dag om de afspraken te zien.</div></div>
+    </div>
+    <!-- Aankomende -->
+    <div style="flex:0 0 220px;background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:16px;max-height:calc(100vh - 180px);overflow-y:auto">
+      <div style="font-family:'Poppins',sans-serif;font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Aankomend</div>
+      <div id="si-ag-aankomende"></div>
+    </div>
+  </div>
+</div>
+
 <!-- INSTALLATIE DOSSIER MODAL (volledig) -->
 <div class="modal-overlay" id="inst-dossier-overlay">
-  <div class="modal-box" style="max-width:900px;width:98vw;max-height:92vh;display:flex;flex-direction:column">
+  <div class="modal-box" style="max-width:1160px;width:99vw;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-header" style="flex-shrink:0">
       <span class="modal-title" id="inst-dossier-titel">Installatie dossier</span>
       <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
@@ -700,6 +765,7 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
           style="font-size:12px;padding:5px 10px;border-radius:20px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-weight:600">
           <option>Nieuw</option><option>Info verkrijgen</option><option>Screening ok</option>
           <option>Installatie gepland</option><option>Installatie &amp; Keuring gepland</option>
+          <option>Installatie &amp; Keuring compleet</option>
         </select>
         <button class="modal-close" onclick="instDossierClose()"><i class="ti ti-x"></i></button>
       </div>
@@ -713,7 +779,18 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
     </div>
     <div style="flex:1;overflow-y:auto;padding:0 2px">
       <!-- TAB: INSTALLATIE -->
-      <div id="inst-dtab-content-installatie">
+      <div id="inst-dtab-content-installatie" style="display:flex;gap:0;min-height:0">
+        <!-- Activiteitenlog sidebar links -->
+        <div style="width:250px;flex-shrink:0;border-right:1px solid var(--bd);background:var(--bg2);padding:14px;display:flex;flex-direction:column">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--bd)"><i class="ti ti-timeline" style="margin-right:5px;color:var(--green)"></i>Activiteitenlog</div>
+          <div style="display:flex;gap:6px;margin-bottom:10px">
+            <input id="id-log-tekst" placeholder="Actie loggen..." style="flex:1;font-size:12px">
+            <button class="btn sm primary" onclick="instLogAdd()" style="flex-shrink:0"><i class="ti ti-plus"></i></button>
+          </div>
+          <div id="id-log-list" style="flex:1;overflow-y:auto"></div>
+        </div>
+        <!-- Rechts: installatie info -->
+        <div style="flex:1;padding:14px;overflow-y:auto;min-width:0">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
           <div class="field"><label>Voornaam *</label><input id="id-voornaam" placeholder="Jan"></div>
           <div class="field"><label>Achternaam *</label><input id="id-achternaam" placeholder="Vermeersch"></div>
@@ -738,17 +815,7 @@ label{font-size:12px;color:var(--tx2);margin-bottom:4px;display:block}
             <div id="id-link-dd" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:300;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.14);max-height:180px;overflow-y:auto"></div>
           </div>
         </div>
-        <!-- Activiteitenlog -->
-        <div style="margin-top:1rem;border-top:1px solid var(--bd);padding-top:1rem">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
-            <span><i class="ti ti-timeline" style="margin-right:5px"></i>Activiteitenlog</span>
-          </div>
-          <div style="display:flex;gap:8px;margin-bottom:10px">
-            <input id="id-log-tekst" placeholder="Noteer een actie of opvolging..." style="flex:1;font-size:12px">
-            <button class="btn sm primary" onclick="instLogAdd()"><i class="ti ti-plus"></i></button>
-          </div>
-          <div id="id-log-list" style="max-height:220px;overflow-y:auto"></div>
-        </div>
+        </div><!-- end rechts installatie info -->
       </div>
       <!-- TAB: SCREENING -->
       <div id="inst-dtab-content-screening" style="display:none">
@@ -983,16 +1050,64 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
 
 <!-- B2C INSTALLATIEPARTNER POPUP -->
 <div class="modal-overlay" id="b2c-installateur-overlay">
-  <div class="modal-box" style="max-width:420px">
+  <div class="modal-box" style="max-width:480px">
     <div class="modal-header">
       <span class="modal-title"><i class="ti ti-tools" style="color:var(--green);margin-right:6px"></i>Installatiepartner koppelen</span>
       <button class="modal-close" onclick="b2cSluitInstallateur()"><i class="ti ti-x"></i></button>
     </div>
-    <p style="font-size:13px;color:var(--tx2);margin-bottom:14px">Welke installatiepartner wordt gekoppeld aan deze offerte?</p>
-    <div class="field"><label>Naam installatiepartner *</label><input id="b2c-installateur-input" placeholder="bv. Elektro Janssen, TechInstall NV..." autocomplete="off"></div>
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:12px">Welke installatiepartner wordt gekoppeld aan deze offerte?</p>
+
+    <!-- Zoek in CRM -->
+    <div class="field" style="position:relative;margin-bottom:6px">
+      <label>Zoek in CRM of typ een naam</label>
+      <input id="b2c-inst-search" placeholder="Zoek installatiepartner…" autocomplete="off" oninput="b2cInstZoek(this.value)" style="width:100%">
+      <div id="b2c-inst-dd" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:300;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:180px;overflow-y:auto;margin-top:2px"></div>
+    </div>
+    <div id="b2c-inst-chip" style="display:none;margin-bottom:10px;align-items:center;gap:6px;background:rgba(0,223,163,.10);border:1px solid rgba(0,223,163,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;color:#00805e"></div>
+    <input type="hidden" id="b2c-installateur-input">
+
+    <!-- Snelle aanmaak CRM -->
+    <div id="b2c-inst-nieuw-toggle" style="margin-bottom:8px">
+      <button class="btn sm" onclick="b2cInstToggleNieuw()" style="font-size:11px;color:var(--tx3)"><i class="ti ti-plus"></i> Partner staat niet in CRM — snel aanmaken</button>
+    </div>
+    <div id="b2c-inst-nieuw-form" style="display:none;background:var(--bg2);border-radius:var(--r);padding:12px;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Nieuwe installatiepartner aanmaken in CRM</div>
+      <div class="grid2" style="gap:8px;margin-bottom:8px">
+        <div class="field" style="margin:0"><label style="font-size:11px">Bedrijfsnaam *</label><input id="b2c-inst-n-naam" placeholder="TechInstall NV" style="font-size:12px"></div>
+        <div class="field" style="margin:0"><label style="font-size:11px">BTW-nummer</label><input id="b2c-inst-n-btw" placeholder="BE 0123.456.789" style="font-size:12px"></div>
+      </div>
+      <div class="grid2" style="gap:8px;margin-bottom:8px">
+        <div class="field" style="margin:0"><label style="font-size:11px">Contactpersoon</label><input id="b2c-inst-n-contact" placeholder="Jan Janssen" style="font-size:12px"></div>
+        <div class="field" style="margin:0"><label style="font-size:11px">GSM</label><input id="b2c-inst-n-gsm" type="tel" placeholder="0499 123 456" style="font-size:12px"></div>
+      </div>
+      <div class="field" style="margin-bottom:6px"><label style="font-size:11px">E-mail</label><input id="b2c-inst-n-email" type="email" placeholder="info@partner.be" style="font-size:12px"></div>
+      <button class="btn sm primary" onclick="b2cInstAanmaken()"><i class="ti ti-plus"></i> Aanmaken in CRM &amp; koppelen</button>
+    </div>
+
     <div class="modal-footer">
       <button class="btn" onclick="b2cSluitInstallateur()">Annuleren</button>
       <button class="btn primary" onclick="b2cBevestigInstallateur()"><i class="ti ti-check"></i> Koppelen &amp; opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- B2C GEWONNEN — PARTNER INSTALLATEUR OVERLAY -->
+<div class="modal-overlay" id="b2c-gw-partner-overlay">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-header">
+      <span class="modal-title"><i class="ti ti-users" style="color:var(--green);margin-right:6px"></i>Partner installeert — <span id="b2c-gw-partner-naam"></span></span>
+      <button class="modal-close" onclick="b2cSluitGwPartner()"><i class="ti ti-x"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:12px">Welke installatiepartner voert de installatie uit?</p>
+    <div class="field" style="position:relative">
+      <label>Naam installatiepartner *</label>
+      <input id="b2c-gw-partner-input" placeholder="Zoek in CRM of typ een naam…" autocomplete="off" oninput="b2cGwPartnerZoek(this.value)" style="width:100%">
+      <div id="b2c-gw-partner-dd" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:300;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:180px;overflow-y:auto;margin-top:2px"></div>
+    </div>
+    <div id="b2c-gw-partner-chip" style="display:none;margin-top:6px;align-items:center;gap:6px;background:rgba(0,223,163,.10);border:1px solid rgba(0,223,163,.3);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;color:#00805e"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="b2cSluitGwPartner()">Annuleren</button>
+      <button class="btn primary" onclick="b2cBevestigGwPartner()"><i class="ti ti-trophy"></i> Gewonnen — partner koppelen</button>
     </div>
   </div>
 </div>
@@ -1089,44 +1204,153 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
 
 <!-- AGENDA NIEUW MODAL -->
 <div class="modal-overlay" id="ag-nieuw-overlay">
-  <div class="modal-box" style="max-width:520px">
+  <div class="modal-box" style="max-width:540px">
     <div class="modal-header">
       <span class="modal-title" id="ag-nieuw-titel">Afspraak toevoegen</span>
       <button class="modal-close" onclick="agCloseNieuw()"><i class="ti ti-x"></i></button>
     </div>
-    <div class="field"><label>Titel *</label><input id="ag-titel" placeholder="bv. Visit Jan Vermeersch"></div>
-    <div class="grid2">
-      <div class="field"><label>Datum *</label><input type="date" id="ag-datum"></div>
-      <div class="field"><label>Uur</label><input type="time" id="ag-uur" value="09:00"></div>
+
+    <!-- STAP 0: Hoofdkeuze -->
+    <div id="ag-stap-0">
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:14px">Wat voor afspraak wil je toevoegen?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <button onclick="agKiesHoofd('service')" style="background:var(--bg2);border:2px solid var(--bd);border-radius:var(--rl);padding:1.25rem;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit" onmouseover="this.style.borderColor='#e85d04';this.style.background='rgba(232,93,4,.06)'" onmouseout="this.style.borderColor='var(--bd)';this.style.background='var(--bg2)'">
+          <i class="ti ti-tools" style="font-size:28px;color:#e85d04;display:block;margin-bottom:8px"></i>
+          <div style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;color:var(--tx)">Installatie / Service</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:4px">Installatie, keuring of andere service-afspraak</div>
+        </button>
+        <button onclick="agKiesHoofd('sales')" style="background:var(--bg2);border:2px solid var(--bd);border-radius:var(--rl);padding:1.25rem;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit" onmouseover="this.style.borderColor='var(--green)';this.style.background='rgba(0,223,163,.06)'" onmouseout="this.style.borderColor='var(--bd)';this.style.background='var(--bg2)'">
+          <i class="ti ti-briefcase" style="font-size:28px;color:var(--green);display:block;margin-bottom:8px"></i>
+          <div style="font-family:'Poppins',sans-serif;font-size:14px;font-weight:700;color:var(--tx)">Visit / Sales</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:4px">B2C lead, B2B project of andere sales-afspraak</div>
+        </button>
+      </div>
     </div>
-    <div class="grid2">
-      <div class="field"><label>Type</label>
-        <select id="ag-type">
-          <option value="B2C">B2C</option>
-          <option value="B2B">B2B</option>
-          <option value="Andere">Andere</option>
-        </select>
+
+    <!-- STAP 1 SERVICE: subtype -->
+    <div id="ag-stap-1-service" style="display:none">
+      <button onclick="agTerug(0)" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;margin-bottom:12px;padding:0;display:flex;align-items:center;gap:4px"><i class="ti ti-arrow-left"></i> Terug</button>
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:14px">Wat voor service-afspraak?</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="agKiesService('installatie')" style="background:var(--bg2);border:2px solid var(--bd);border-radius:var(--r);padding:12px 16px;cursor:pointer;text-align:left;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:12px" onmouseover="this.style.borderColor='#e85d04'" onmouseout="this.style.borderColor='var(--bd)'">
+          <i class="ti ti-plug" style="font-size:22px;color:#e85d04;flex-shrink:0"></i>
+          <div><div style="font-weight:600;font-size:13px">Installatie</div><div style="font-size:11px;color:var(--tx3)">Koppel aan een installatieticket</div></div>
+        </button>
+        <button onclick="agKiesService('keuring')" style="background:var(--bg2);border:2px solid var(--bd);border-radius:var(--r);padding:12px 16px;cursor:pointer;text-align:left;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:12px" onmouseover="this.style.borderColor='#7b2d8b'" onmouseout="this.style.borderColor='var(--bd)'">
+          <i class="ti ti-clipboard-check" style="font-size:22px;color:#7b2d8b;flex-shrink:0"></i>
+          <div><div style="font-weight:600;font-size:13px">Keuring</div><div style="font-size:11px;color:var(--tx3)">Koppel aan een installatieticket voor keuring</div></div>
+        </button>
+        <button onclick="agKiesService('andere')" style="background:var(--bg2);border:2px solid var(--bd);border-radius:var(--r);padding:12px 16px;cursor:pointer;text-align:left;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:12px" onmouseover="this.style.borderColor='var(--bd2)'" onmouseout="this.style.borderColor='var(--bd)'">
+          <i class="ti ti-calendar" style="font-size:22px;color:var(--tx2);flex-shrink:0"></i>
+          <div><div style="font-weight:600;font-size:13px">Andere</div><div style="font-size:11px;color:var(--tx3)">Vrije service-afspraak</div></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- STAP 1 SALES: subtype -->
+    <div id="ag-stap-1-sales" style="display:none">
+      <button onclick="agTerug(0)" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;margin-bottom:12px;padding:0;display:flex;align-items:center;gap:4px"><i class="ti ti-arrow-left"></i> Terug</button>
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:14px">Wat voor sales-afspraak?</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="agKiesSales('b2c')" style="background:var(--bg2);border:2px solid var(--bd);border-radius:var(--r);padding:12px 16px;cursor:pointer;text-align:left;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:12px" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--bd)'">
+          <i class="ti ti-users" style="font-size:22px;color:var(--green);flex-shrink:0"></i>
+          <div><div style="font-weight:600;font-size:13px">B2C</div><div style="font-size:11px;color:var(--tx3)">Koppel aan een B2C lead</div></div>
+        </button>
+        <button onclick="agKiesSales('b2b')" style="background:var(--bg2);border:2px solid var(--bd);border-radius:var(--r);padding:12px 16px;cursor:pointer;text-align:left;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:12px" onmouseover="this.style.borderColor='#534AB7'" onmouseout="this.style.borderColor='var(--bd)'">
+          <i class="ti ti-briefcase" style="font-size:22px;color:#534AB7;flex-shrink:0"></i>
+          <div><div style="font-weight:600;font-size:13px">B2B</div><div style="font-size:11px;color:var(--tx3)">Koppel aan een project of prospect</div></div>
+        </button>
+        <button onclick="agKiesSales('andere')" style="background:var(--bg2);border:2px solid var(--bd);border-radius:var(--r);padding:12px 16px;cursor:pointer;text-align:left;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:12px" onmouseover="this.style.borderColor='var(--bd2)'" onmouseout="this.style.borderColor='var(--bd)'">
+          <i class="ti ti-calendar" style="font-size:22px;color:var(--tx2);flex-shrink:0"></i>
+          <div><div style="font-weight:600;font-size:13px">Andere</div><div style="font-size:11px;color:var(--tx3)">Vrije sales-afspraak</div></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- STAP 2: Ticket zoeken (installatie/keuring) -->
+    <div id="ag-stap-2-ticket" style="display:none">
+      <button onclick="agTerug(1)" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;margin-bottom:12px;padding:0;display:flex;align-items:center;gap:4px"><i class="ti ti-arrow-left"></i> Terug</button>
+      <div id="ag-ticket-label" style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px">Kies een installatieticket *</div>
+      <div style="position:relative;margin-bottom:10px">
+        <input id="ag-ticket-search" placeholder="Zoek op naam of adres..." autocomplete="off" oninput="agTicketSearch(this.value)" style="width:100%">
+        <div id="ag-ticket-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;margin-top:2px"></div>
+      </div>
+      <div id="ag-ticket-chip" style="display:none;align-items:center;gap:6px;background:rgba(232,93,4,.1);border:1px solid rgba(232,93,4,.3);border-radius:6px;padding:6px 10px;font-size:12px;color:#e85d04;font-weight:600;margin-bottom:10px"></div>
+      <input type="hidden" id="ag-ticket-id" value="">
+      <div id="ag-ticket-info" style="display:none;background:var(--bg2);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--tx2);margin-bottom:10px;line-height:1.7"></div>
+      <div class="grid2">
+        <div class="field"><label>Datum *</label><input type="date" id="ag-datum"></div>
+        <div class="field"><label>Uur</label><input type="time" id="ag-uur" value="09:00"></div>
       </div>
       <div class="field"><label>Verantwoordelijke</label>
         <select id="ag-resp"><option value="">— kies —</option></select>
       </div>
+      <div class="field"><label>Notities bij deze afspraak</label><textarea id="ag-notitie" rows="3" placeholder="Extra info specifiek voor deze afspraak..."></textarea></div>
+      <input type="hidden" id="ag-link-id" value="">
+      <input type="hidden" id="ag-link-label" value="">
+      <input type="hidden" id="ag-link-search" value="">
     </div>
-    <div class="field"><label>Gelinkt project / lead (optioneel)</label>
-      <div style="position:relative">
-        <input id="ag-link-search" placeholder="Zoek project of B2C lead..." autocomplete="off"
-          oninput="agLinkSearch(this.value)" onfocus="agLinkSearch(this.value)"
-          style="width:100%">
-        <input type="hidden" id="ag-link-id" value="">
-        <input type="hidden" id="ag-link-label" value="">
-        <div id="ag-link-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:200px;overflow-y:auto;margin-top:2px"></div>
+
+    <!-- STAP 2: B2C lead zoeken -->
+    <div id="ag-stap-2-b2c" style="display:none">
+      <button onclick="agTerug(1)" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;margin-bottom:12px;padding:0;display:flex;align-items:center;gap:4px"><i class="ti ti-arrow-left"></i> Terug</button>
+      <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px">Kies een B2C lead *</div>
+      <div style="position:relative;margin-bottom:10px">
+        <input id="ag-b2c-search" placeholder="Zoek op naam, adres of tel..." autocomplete="off" oninput="agB2cSearch(this.value)" style="width:100%">
+        <div id="ag-b2c-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;margin-top:2px"></div>
       </div>
-      <div id="ag-link-chip" style="display:none;margin-top:6px;display:none;align-items:center;gap:6px;background:rgba(0,223,163,.12);border:1px solid rgba(0,223,163,.3);border-radius:6px;padding:4px 10px;font-size:12px;color:#00805e;font-weight:600"></div>
+      <div id="ag-b2c-chip" style="display:none;align-items:center;gap:6px;background:rgba(0,223,163,.1);border:1px solid rgba(0,223,163,.3);border-radius:6px;padding:6px 10px;font-size:12px;color:#00805e;font-weight:600;margin-bottom:10px"></div>
+      <input type="hidden" id="ag-b2c-id" value="">
+      <div class="field"><label>Titel van de afspraak *</label><input id="ag-titel" placeholder="bv. Visit Jan Vermeersch"></div>
+      <div class="grid2">
+        <div class="field"><label>Datum *</label><input type="date" id="ag-datum2"></div>
+        <div class="field"><label>Uur</label><input type="time" id="ag-uur2" value="09:00"></div>
+      </div>
+      <div class="field"><label>Verantwoordelijke</label>
+        <select id="ag-resp2"><option value="">— kies —</option></select>
+      </div>
+      <div class="field"><label>Notities bij deze afspraak</label><textarea id="ag-notitie2" rows="3" placeholder="Extra info specifiek voor deze afspraak..."></textarea></div>
     </div>
-    <div class="field"><label>Notitie</label><textarea id="ag-notitie" rows="2" placeholder="Extra info..."></textarea></div>
+
+    <!-- STAP 2: B2B project/prospect zoeken -->
+    <div id="ag-stap-2-b2b" style="display:none">
+      <button onclick="agTerug(1)" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;margin-bottom:12px;padding:0;display:flex;align-items:center;gap:4px"><i class="ti ti-arrow-left"></i> Terug</button>
+      <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px">Kies een project of prospect *</div>
+      <div style="position:relative;margin-bottom:10px">
+        <input id="ag-b2b-search" placeholder="Zoek op projectnaam of klant..." autocomplete="off" oninput="agB2bSearch(this.value)" style="width:100%">
+        <div id="ag-b2b-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;margin-top:2px"></div>
+      </div>
+      <div id="ag-b2b-chip" style="display:none;align-items:center;gap:6px;background:rgba(83,74,183,.1);border:1px solid rgba(83,74,183,.3);border-radius:6px;padding:6px 10px;font-size:12px;color:#534AB7;font-weight:600;margin-bottom:10px"></div>
+      <input type="hidden" id="ag-b2b-id" value="">
+      <div class="field"><label>Titel van de afspraak *</label><input id="ag-titel3" placeholder="bv. Offertegesprek Parking Delhaize"></div>
+      <div class="grid2">
+        <div class="field"><label>Datum *</label><input type="date" id="ag-datum3"></div>
+        <div class="field"><label>Uur</label><input type="time" id="ag-uur3" value="09:00"></div>
+      </div>
+      <div class="field"><label>Verantwoordelijke</label>
+        <select id="ag-resp3"><option value="">— kies —</option></select>
+      </div>
+      <div class="field"><label>Notities bij deze afspraak</label><textarea id="ag-notitie3" rows="3" placeholder="Extra info specifiek voor deze afspraak..."></textarea></div>
+    </div>
+
+    <!-- STAP 2: Andere (service of sales) -->
+    <div id="ag-stap-2-andere" style="display:none">
+      <button onclick="agTerug(1)" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;margin-bottom:12px;padding:0;display:flex;align-items:center;gap:4px"><i class="ti ti-arrow-left"></i> Terug</button>
+      <div class="field"><label>Titel van de afspraak *</label><input id="ag-titel4" placeholder="bv. Teamvergadering"></div>
+      <div class="grid2">
+        <div class="field"><label>Datum *</label><input type="date" id="ag-datum4"></div>
+        <div class="field"><label>Uur</label><input type="time" id="ag-uur4" value="09:00"></div>
+      </div>
+      <div class="field"><label>Verantwoordelijke</label>
+        <select id="ag-resp4"><option value="">— kies —</option></select>
+      </div>
+      <div class="field"><label>Notities bij deze afspraak</label><textarea id="ag-notitie4" rows="3" placeholder="Extra info specifiek voor deze afspraak..."></textarea></div>
+    </div>
+
     <div class="modal-footer">
       <button class="btn danger" id="ag-del-btn" style="display:none;margin-right:auto" onclick="agDelete()"><i class="ti ti-trash"></i> Verwijderen</button>
       <button class="btn" onclick="agCloseNieuw()">Annuleren</button>
-      <button class="btn primary" onclick="agSave()"><i class="ti ti-check"></i> Opslaan</button>
+      <button class="btn primary" id="ag-save-btn" style="display:none" onclick="agSave()"><i class="ti ti-check"></i> Opslaan</button>
     </div>
   </div>
 </div>
@@ -1139,6 +1363,7 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
   </div>
   <div class="crm-search">
     <input id="crm-search" type="text" placeholder="Zoek op naam, BTW, contactpersoon..." oninput="renderCrm()" style="max-width:400px">
+    <button id="crm-partner-filter" class="btn sm" onclick="crmTogglePartnerFilter()" title="Toon enkel installatiepartners"><i class="ti ti-tools"></i> Partners</button>
   </div>
   <div class="crm-hdr">
     <span>Bedrijf</span><span>BTW-nummer</span><span>Contactpersoon</span><span>Tel / E-mail</span><span></span>
@@ -1175,6 +1400,10 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
       <div class="field"><label>E-mail contactpersoon</label><input id="crm-contactemail" type="email" placeholder="jan@bedrijf.be"></div>
     </div>
     <div class="field"><label>Notities</label><textarea id="crm-notities" rows="2" placeholder="Extra informatie over deze klant..."></textarea></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:4px;padding:10px 12px;background:var(--bg2);border-radius:var(--r)">
+      <input type="checkbox" id="crm-is-partner" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer">
+      <label for="crm-is-partner" style="cursor:pointer;font-size:13px;font-weight:600"><i class="ti ti-tools" style="color:var(--green);margin-right:4px"></i>Dit bedrijf is een installatiepartner</label>
+    </div>
     <div class="modal-footer">
       <button class="btn danger" id="crm-del-btn" style="display:none;margin-right:auto" onclick="deleteCrmKlant()"><i class="ti ti-trash"></i> Verwijderen</button>
       <button class="btn" onclick="closeCrmModal()">Annuleren</button>
@@ -1254,6 +1483,18 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
         </select>
       </div>
     </div>
+    <div id="ue-verantw-wrap" style="display:none;margin-bottom:14px;padding:12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bd)">
+      <label style="font-size:12px;color:var(--tx2);margin-bottom:8px;display:block">Verantwoordelijk voor</label>
+      <div style="display:flex;gap:16px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="ue-verantw-sales" style="width:auto;accent-color:var(--green)"> Sales
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="ue-verantw-service" style="width:auto;accent-color:var(--green)"> Service &amp; Installatie
+        </label>
+      </div>
+      <div style="font-size:11px;color:var(--tx3);margin-top:6px">Als niets aangevinkt staat, kan deze persoon niet als verantwoordelijke worden geselecteerd.</div>
+    </div>
     <div class="modal-footer">
       <button class="btn danger" id="user-edit-del-btn" style="margin-right:auto" onclick="deleteUserFromEdit()"><i class="ti ti-trash"></i></button>
       <button class="btn" onclick="closeUserEditModal()">Annuleren</button>
@@ -1302,14 +1543,23 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
 
 <!-- MODAL -->
 <div class="modal-overlay" id="modal-overlay">
-  <div class="modal-box" style="max-width:1100px;width:98vw">
+  <div class="modal-box" style="max-width:1340px;width:99vw;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-header">
       <span class="modal-title" id="modal-title">Nieuw project</span>
       <button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>
     </div>
-    <div class="field"><label>Projectnaam *</label><input id="m-naam" placeholder="bv. Parking Delhaize Gent"></div>
+    <div class="field" style="flex-shrink:0"><label>Projectnaam *</label><input id="m-naam" placeholder="bv. Parking Delhaize Gent"></div>
     <!-- SPLIT LAYOUT -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+    <div style="display:grid;grid-template-columns:280px 1fr 1fr;gap:20px;align-items:start;flex:1;overflow-y:auto;min-height:0">
+      <!-- ACTIVITEITENLOG (links) -->
+      <div style="position:sticky;top:0;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bd);padding:14px;min-height:500px;display:flex;flex-direction:column">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--bd)"><i class="ti ti-timeline" style="margin-right:5px;color:var(--green)"></i>Activiteitenlog</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <input id="tl-actie-log" placeholder="Actie loggen..." style="flex:1;font-size:12px">
+          <button class="btn sm primary" onclick="tlLogActie()" style="flex-shrink:0"><i class="ti ti-plus"></i></button>
+        </div>
+        <div id="m-activiteitenlog" style="flex:1;overflow-y:auto;max-height:420px"></div>
+      </div>
       <!-- LINKS: Gegevens & contact & opvolging -->
       <div>
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--bd)"><i class="ti ti-building" style="margin-right:5px"></i>Klant & contact</div>
@@ -1340,7 +1590,7 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
               <option value="3">2e gesprek</option>
               <option value="4">Opvolging</option>
               <option value="5">Wachten op akkoord</option>
-              <option value="6">Akkoord / project verkocht</option>
+              <option value="6">Gewonnen</option>
             </select>
             <div class="slider-wrap">
               <input type="range" id="m-pct" min="0" max="100" step="1" value="5" oninput="onPctChange(this.value)">
@@ -1355,11 +1605,6 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
         <div class="grid2">
           <div class="field"><label><i class="ti ti-bolt" style="color:var(--green);margin-right:4px"></i>Aantal laadpunten</label><input type="number" id="m-lp" placeholder="0" min="0"></div>
           <div class="field"><label><i class="ti ti-file-invoice" style="color:var(--green);margin-right:4px"></i>Offertenummer</label><input id="m-offertenr" placeholder="bv. OFF-2026-001"></div>
-        </div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin:14px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--bd)"><i class="ti ti-calendar-event" style="margin-right:5px"></i>Opvolging</div>
-        <div class="grid2">
-          <div class="field"><label>Opvolgdatum</label><input type="date" id="m-datum"></div>
-          <div class="field"><label>Notitie opvolging</label><input id="m-notitie" placeholder="bv. offerte bespreken..."></div>
         </div>
         <div class="field">
           <label><i class="ti ti-paperclip" style="margin-right:4px;color:var(--green)"></i>Bijlagen</label>
@@ -1386,28 +1631,40 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
             <span id="ai-spin" style="display:none;font-size:12px;color:var(--tx2)"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Even nadenken...</span>
           </div>
         </div>
-        <!-- TIJDLIJN -->
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin:14px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--bd)"><i class="ti ti-timeline" style="margin-right:5px"></i>Tijdlijn acties</div>
-        <!-- Nieuwe actie toevoegen -->
-        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-end">
-          <div style="flex:1">
-            <label style="font-size:11px;color:var(--tx2);margin-bottom:3px;display:block">Actie</label>
-            <input id="tl-actie" placeholder="bv. Offerte verstuurd, meeting gehad..." style="font-size:12px">
+        <!-- OPVOLGINGEN B2B -->
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin:14px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--bd)"><i class="ti ti-calendar-check" style="margin-right:5px;color:var(--green)"></i>Opvolgingen</div>
+        <div id="b2b-opvolging-list" style="margin-bottom:8px"></div>
+        <div id="b2b-opvolging-form" style="display:none;background:var(--bg2);border-radius:var(--r);padding:12px;margin-bottom:10px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div class="field" style="margin:0"><label style="font-size:11px">Datum</label><input type="date" id="b2bop-datum" style="font-size:12px"></div>
+            <div class="field" style="margin:0"><label style="font-size:11px">Uur (optioneel)</label><input type="time" id="b2bop-uur" style="font-size:12px"></div>
           </div>
-          <div style="width:130px">
-            <label style="font-size:11px;color:var(--tx2);margin-bottom:3px;display:block">Datum</label>
-            <input type="date" id="tl-datum" style="font-size:12px">
+          <div class="field" style="margin-bottom:8px"><label style="font-size:11px">Wat moet er gedaan worden?</label><input id="b2bop-tekst" placeholder="bv. Offerte opvolgen, terugbellen..." style="font-size:12px"></div>
+          <div style="display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn sm" onclick="document.getElementById('b2b-opvolging-form').style.display='none'">Annuleren</button>
+            <button class="btn sm primary" onclick="b2bSaveOpvolging()"><i class="ti ti-check"></i> Opslaan</button>
           </div>
-          <button class="btn sm primary" onclick="tlAddActie()" style="flex-shrink:0;height:36px"><i class="ti ti-plus"></i></button>
         </div>
-        <!-- Tijdlijn lijst -->
-        <div id="m-tijdlijn" style="max-height:320px;overflow-y:auto"></div>
+        <button class="btn sm" onclick="b2bAddOpvolging()" style="margin-bottom:14px;width:100%;justify-content:center"><i class="ti ti-plus"></i> Opvolging toevoegen</button>
+        <!-- Installatiepartner -->
+        <div style="border-top:1px solid var(--bd);padding-top:14px;margin-top:4px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:10px"><i class="ti ti-tools" style="color:#e85d04;margin-right:5px"></i>Installatiepartner</div>
+          <div style="position:relative">
+            <input id="m-partner-search" placeholder="Zoek installatiepartner in CRM…" autocomplete="off" oninput="mPartnerZoek(this.value);document.getElementById('m-partner-naam').value=this.value.trim();" style="width:100%;font-size:13px">
+            <div id="m-partner-dd" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:160px;overflow-y:auto;margin-top:2px"></div>
+          </div>
+          <div id="m-partner-chip" style="display:none;margin-top:6px;align-items:center;gap:6px;background:rgba(232,93,4,.08);border:1px solid rgba(232,93,4,.25);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;color:#e85d04">
+          </div>
+          <input type="hidden" id="m-partner-naam">
+        </div>
+        <!-- Hidden tijdlijn input for compat -->
+        <input type="hidden" id="tl-actie"><input type="hidden" id="tl-datum">
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn danger" id="m-delete-btn" style="display:none;margin-right:auto" onclick="deleteProject()"><i class="ti ti-trash"></i> Verwijderen</button>
-      <button class="btn" style="border-color:rgba(232,93,4,.4);color:#e85d04" id="m-naar-inst-btn" style="display:none" onclick="b2bDoorstuurInstallatie()"><i class="ti ti-tool"></i> → Installatie</button>
-      <button class="btn" onclick="closeModal()">Annuleren</button>
+      <button class="btn" style="border-color:rgba(232,93,4,.4);color:#e85d04" id="m-naar-inst-btn" onclick="b2bDoorstuurInstallatie()"><i class="ti ti-tool"></i> → Installatie</button>
+      <button class="btn" onclick="closeModalSafe()">Annuleren</button>
       <button class="btn primary" onclick="saveProject()"><i class="ti ti-check"></i> Opslaan</button>
     </div>
   </div>
@@ -1415,7 +1672,7 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
 
 <!-- B2C LEAD DETAIL MODAL -->
 <div class="modal-overlay" id="b2c-detail-overlay">
-  <div class="modal-box" style="max-width:880px;display:flex;flex-direction:column;max-height:90vh">
+  <div class="modal-box" style="max-width:1180px;width:99vw;display:flex;flex-direction:column;max-height:92vh">
     <div class="modal-header">
       <span class="modal-title" id="b2c-detail-titel">Klantdossier</span>
       <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
@@ -1429,10 +1686,22 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
       <button class="inner-tab" id="b2c-dtab-screening" onclick="b2cShowDetailTab('screening')"><i class="ti ti-clipboard-list" style="margin-right:5px"></i>Screening</button>
       <button class="inner-tab" id="b2c-dtab-contract" onclick="b2cShowDetailTab('contract')"><i class="ti ti-file-invoice" style="margin-right:5px"></i>Contract</button>
     </div>
-    <div style="flex:1;overflow-y:auto">
-      <div id="b2c-detail-info"></div>
-      <div id="b2c-detail-screening" style="display:none"></div>
-      <div id="b2c-detail-contract" style="display:none"></div>
+    <div style="flex:1;overflow-y:auto;display:flex;min-height:0">
+      <!-- Activiteitenlog sidebar links -->
+      <div id="b2c-log-sidebar" style="width:260px;flex-shrink:0;border-right:1px solid var(--bd);background:var(--bg2);padding:14px;display:flex;flex-direction:column;overflow-y:auto">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--bd)"><i class="ti ti-timeline" style="margin-right:5px;color:var(--green)"></i>Activiteitenlog</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <input id="b2c-actie-sidebar-input" placeholder="Actie loggen..." style="flex:1;font-size:12px">
+          <button class="btn sm primary" onclick="b2cLogActieSidebar()" style="flex-shrink:0"><i class="ti ti-plus"></i></button>
+        </div>
+        <div id="b2c-log-sidebar-list" style="flex:1;overflow-y:auto"></div>
+      </div>
+      <!-- Main content -->
+      <div style="flex:1;overflow-y:auto;min-width:0">
+        <div id="b2c-detail-info"></div>
+        <div id="b2c-detail-screening" style="display:none"></div>
+        <div id="b2c-detail-contract" style="display:none"></div>
+      </div>
     </div>
     <div class="modal-footer" id="b2c-detail-footer" style="border-top:1px solid var(--bd);padding:12px 20px;background:var(--bg);flex-shrink:0">
       <button class="btn danger" onclick="b2cVerwijderLead(b2cOpenLeadId)" style="margin-right:auto"><i class="ti ti-trash"></i> Lead verwijderen</button>
@@ -1471,7 +1740,7 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
       <div class="field"><label>Verantwoordelijke</label>
         <select id="bn-resp"><option value="">— kies —</option></select>
       </div>
-      <div class="field"><label>Volgende actie</label><input id="bn-actie" value="Eerste contact opnemen"></div>
+
     </div>
     <div class="field" style="max-width:200px"><label><i class="ti ti-calendar" style="color:var(--green);margin-right:4px"></i>Aanmaakdatum lead</label><input type="date" id="bn-aanmaakdatum"></div>
     <div class="field" style="max-width:220px"><label><i class="ti ti-file-invoice" style="color:var(--green);margin-right:4px"></i>Offertenummer</label><input id="bn-offertenr" placeholder="bv. OFF-2026-001"></div>
@@ -1608,7 +1877,7 @@ CREATE POLICY "open" ON settings FOR ALL USING (true) WITH CHECK (true);</pre>
 // Supabase collections: projects, closed_projects, settings
 // ══════════════════════════════════════════════════════
 
-const STATUSES = ['Kennismaking','Installateur/partner zoeken','Offerte opstellen','2e gesprek','Opvolging','Wachten op akkoord','Akkoord / project verkocht'];
+const STATUSES = ['Kennismaking','Installateur/partner zoeken','Offerte opstellen','2e gesprek','Opvolging','Wachten op akkoord','Gewonnen'];
 const VISIBLE_STATUSES = [0,1,3,4,5,6];
 const DEFAULT_PCT = [5,25,38,50,65,80,100];
 const MONTHS_NL = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
@@ -1637,8 +1906,9 @@ let dragSourceIdx    = null;
 let didDrag          = false;
 let currentAttachments = [];
 let currentTijdlijn = [];
+let currentB2bOpvolgingen = [];
 let dashWindow       = null;
-let prevSoldSet      = new Set();
+let prevSoldSet      = null; // null = nog niet geïnitialiseerd, eerste loadAll vult het zonder confetti
 let calYear  = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 
@@ -1692,7 +1962,8 @@ const AG_TYPES   = ['B2C','B2B','Installatie','Keuring','Andere'];
 const AG_KLEUREN = {B2C:'#00DFA3',B2B:'#534AB7',Installatie:'#e85d04',Keuring:'#7b2d8b',Andere:'#EF9F27'};
 
 // ── INSTALLATIES STATE ──
-const INST_FASES = ['Nieuw','Info verkrijgen','Screening ok','Installatie gepland','Installatie & Keuring gepland'];
+const INST_FASES = ['Nieuw','Info verkrijgen','Screening ok','Installatie gepland','Installatie & Keuring gepland','Installatie & Keuring compleet'];
+const INST_FASE_AFGEROND = 'Installatie & Keuring compleet';
 let installaties = [];
 let instNextId = 1;
 let instEditId = null;
@@ -1703,25 +1974,63 @@ let siOpvRespFilter = 'alle';
 // ── HELPERS ────────────────────────────────────────────
 function pctColor(p){const t=Math.max(0,Math.min(1,p/100));return`hsl(${Math.round(30+t*100)},${Math.round(90-t*25)}%,${Math.round(48-t*10)}%)`;}
 function today(){return new Date().toISOString().split('T')[0];}
+function nowTijdstip(){return new Date().toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});}
+function logEntry(tekst){
+  const gebruiker=currentUser?.user_metadata?.naam||currentUser?.email||'';
+  return {datum:today(),tijdstip:nowTijdstip(),gebruiker,tekst};
+}
 function showToast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3500);}
 function filteredLopend(){return activeFilter==='all'?projects:projects.filter(p=>p.resp===activeFilter);}
-function respNames(){
-  // Combineer resps (legacy + Supabase) en allUsers, gededupliceerd op naam/email
-  const names=new Map(); // naam → true
-  // Eerst resps (bestaande koppelingen bewaren)
-  resps.forEach(r=>{
-    const n=typeof r==='string'?r:r.naam||'';
-    if(n)names.set(n.trim(),true);
-  });
-  // Dan allUsers (Supabase gebruikers)
+function respNames(afdeling){
+  // afdeling = 'sales' | 'service' | null (= alles)
+  // Bouw eerst een map van naam → userinfo op basis van allUsers
+  const userByNaam=new Map(); // naam (lowercase) → {afd, verantwoordelijk}
   if(allUsers&&allUsers.length){
     allUsers.forEach(u=>{
       const meta=u.user_metadata||{};
-      const n=meta.naam||(meta.voornaam?(meta.voornaam+' '+(meta.achternaam||'')).trim():null)||u.email.split('@')[0];
-      if(n)names.set(n.trim(),true);
+      const n=(meta.naam||(meta.voornaam?(meta.voornaam+' '+(meta.achternaam||'')).trim():null)||u.email.split('@')[0]||'').trim();
+      if(!n)return;
+      userByNaam.set(n.toLowerCase(),{
+        naam: n,
+        afd: meta.afdeling||null,
+        verantwoordelijk: meta.verantwoordelijk||{}
+      });
     });
   }
-  return [...names.keys()].sort();
+
+  // Combineer: start met allUsers, voeg legacy resps toe die niet als user bestaan
+  const names=new Map(); // naam → info
+  // Eerst alle Supabase users
+  userByNaam.forEach(({naam,afd,verantwoordelijk})=>{
+    names.set(naam, {afd, verantwoordelijk});
+  });
+  // Dan legacy resps — alleen toevoegen als ze NIET al als user bestaan
+  resps.forEach(r=>{
+    const n=(typeof r==='string'?r:r.naam||'').trim();
+    if(!n)return;
+    if(userByNaam.has(n.toLowerCase()))return; // al aanwezig als user
+    names.set(n, null); // null = legacy, geen afdeling bekend
+  });
+
+  // Filter op afdeling
+  try{
+    return [...names.entries()]
+      .filter(([,info])=>{
+        if(!afdeling)return true; // geen filter → alles
+        if(!info)return false; // legacy resp zonder afdeling → verbergen als filter actief
+        const afd=info?.afd||null;
+        const verantw=info?.verantwoordelijk||{};
+        if(afd==='hoofdadmin'){
+          return verantw[afdeling]===true;
+        }
+        return afd===afdeling;
+      })
+      .map(([naam])=>naam)
+      .sort();
+  }catch(e){
+    console.warn('respNames error:',e);
+    return [...names.keys()].sort();
+  }
 }
 
 // ── TABS ──────────────────────────────────────────────
@@ -1744,7 +2053,7 @@ function showTab(name){
 }
 
 function showTab(name){
-  ['dashboard','lopend','verkocht','verloren','instellingen','crm','gebruikers','b2c','b2c-gewonnen','b2c-verloren','agenda','prospects','installaties','si-opvolging'].forEach(id=>{
+  ['dashboard','lopend','verkocht','verloren','instellingen','crm','gebruikers','b2c','b2c-gewonnen','b2c-verloren','agenda','prospects','installaties','si-opvolging','si-afgerond','si-agenda'].forEach(id=>{
     const pane=document.getElementById('pane-'+id);
     if(pane)pane.style.display=(id===name)?'block':'none';
     const tb=document.getElementById('tab-'+id);
@@ -1762,6 +2071,8 @@ function showTab(name){
   if(name==='prospects'){prospRenderRespPills();prospRender();}
   if(name==='installaties'){instRenderBoard();}
   if(name==='si-opvolging'){siOpvRender();}
+  if(name==='si-afgerond'){siAfgerondRender();}
+  if(name==='si-agenda'){siAgRender();}
   updateNavDdActive(name);
 }
 
@@ -1817,7 +2128,7 @@ function prospRender(){
 
 function prospRenderRespPills(){
   const el=document.getElementById('pills-prospects-resp');if(!el)return;
-  const namen=['alle',...respNames()];
+  const namen=['alle',...respNames('sales')];
   el.innerHTML=namen.map(r=>`<button class="pill${prospRespFilter===r?' active':''}" onclick="prospSetResp('${r}')">${r==='alle'?'Iedereen':r}</button>`).join('');
 }
 function prospSetSort(s){
@@ -1843,7 +2154,7 @@ function prospOpenNieuw(){
   document.getElementById('prosp-naar-project-btn').style.display='none';
   // Resp dropdown
   const rsel=document.getElementById('prosp-resp');
-  rsel.innerHTML='<option value="">— Kies —</option>'+respNames().map(r=>`<option>${r}</option>`).join('');
+  rsel.innerHTML='<option value="">— Kies —</option>'+respNames('sales').map(r=>`<option>${r}</option>`).join('');
   rsel.value='';
   // Contacts
   prospRenderContacts([{naam:'',tel:'',email:'',rol:''}]);
@@ -1865,7 +2176,7 @@ function prospOpenEdit(id){
   document.getElementById('prosp-delete-btn').style.display='';
   document.getElementById('prosp-naar-project-btn').style.display='';
   const rsel=document.getElementById('prosp-resp');
-  rsel.innerHTML='<option value="">— Kies —</option>'+respNames().map(r=>`<option>${r}</option>`).join('');
+  rsel.innerHTML='<option value="">— Kies —</option>'+respNames('sales').map(r=>`<option>${r}</option>`).join('');
   rsel.value=p.resp||'';
   prospRenderContacts(p.contacts&&p.contacts.length?p.contacts:[{naam:'',tel:'',email:'',rol:''}]);
   document.getElementById('prosp-modal-overlay').classList.add('open');
@@ -1980,7 +2291,10 @@ async function loadAll(){
   const incoming=(rows||[]).map(r=>({id:r.id,...r.data}));
   // Check nieuwe 100% voor confetti
   const nowSold=new Set(incoming.filter(p=>p.pct===100).map(p=>p.naam));
-  nowSold.forEach(naam=>{if(!prevSoldSet.has(naam))fireConfetti(incoming.find(x=>x.naam===naam));});
+  // Confetti enkel als prevSoldSet al gevuld is (niet bij eerste paginaoplading)
+  if(prevSoldSet!==null){
+    nowSold.forEach(naam=>{if(!prevSoldSet.has(naam))fireConfetti(incoming.find(x=>x.naam===naam));});
+  }
   prevSoldSet=nowSold;
   if(incoming.length>0||projects.length===0)projects=incoming;
   try{localStorage.setItem('blitz_projects',JSON.stringify(projects));}catch{}
@@ -1998,26 +2312,61 @@ async function loadAll(){
 
   setDbStatus('ok','verbonden');
   document.getElementById('db-setup-card').style.display='none';
+  // Service role key automatisch herstellen als die nog niet lokaal staat
+  try{
+    const savedSb=JSON.parse(localStorage.getItem('blitz_sb')||'null');
+    if(!savedSb?.key||savedSb.key===SUPABASE_ANON_KEY){
+      const srkRows=await sbFetch('settings?key=eq.service_role_key');
+      const srk=srkRows&&srkRows[0]?srkRows[0].data?.srk:null;
+      if(srk){
+        localStorage.setItem('blitz_sb',JSON.stringify({url:SUPABASE_URL,key:srk}));
+        supabaseClient=null;initSupabaseClient();
+        console.log('Service role key automatisch hersteld.');
+      }
+    }
+  }catch(e){console.warn('Auto-herstel service role key mislukt:',e.message);}
   await loadKlanten();
   // B2C leads laden
   try{
     const b2crows=await sbFetch('b2c_leads?order=created_at.asc');
     if(b2crows&&b2crows.length>0){
-      b2cLeads=(b2crows||[]).map(r=>({id:r.id,...r.data}));
-      b2cNextId=Math.max(1,...b2cLeads.map(l=>l.id||0))+1;
+      b2cLeads=b2crows.map(r=>({...r.data, _sbid:r.id}));
+      b2cNextId=b2cLeads.length?Math.max(...b2cLeads.map(l=>l.id||0))+1:1;
       try{localStorage.setItem('blitz_b2c',JSON.stringify(b2cLeads));}catch{}
+    } else if(b2crows&&b2crows.length===0&&b2cLeads.length>0){
+      // Remote is leeg maar we hebben lokale data → upload alles naar Supabase
+      console.log('Remote b2c_leads leeg, uploading lokale leads...');
+      for(const l of b2cLeads){await sbSaveB2cLead(l);}
     }
-  }catch(e){console.warn('b2c_leads tabel niet gevonden:',e.message);}
+    // Als b2crows===null (fout) → behoud lokale data
+  }catch(e){console.warn('b2c_leads laden mislukt:',e.message);}
 
   // Prospects laden
   try{
     const prows=await sbFetch('prospects?order=created_at.asc');
     if(prows&&prows.length>0){
-      prospects=(prows||[]).map(r=>({id:r.id,...r.data}));
-      prospNextId=Math.max(1,...prospects.map(p=>p.id||0))+1;
+      prospects=prows.map(r=>({...r.data,_sbid:r.id}));
+      prospNextId=prospects.length?Math.max(...prospects.map(p=>p.id||0))+1:1;
       try{localStorage.setItem('blitz_prospects',JSON.stringify(prospects));}catch{}
+    } else if(prows&&prows.length===0&&prospects.length>0){
+      for(const p of prospects){await sbSaveProspect(p);}
     }
-  }catch(e){console.warn('Prospects tabel niet gevonden (nog niet aangemaakt):',e.message);}
+  }catch(e){console.warn('Prospects tabel niet gevonden:',e.message);}
+
+  // Installaties laden
+  try{
+    const irows=await sbFetch('installaties?order=created_at.asc');
+    if(irows&&irows.length>0){
+      installaties=irows.map(r=>({...r.data,_sbid:r.id}));
+      instNextId=installaties.length?Math.max(...installaties.map(i=>typeof i.id==='number'?i.id:0))+1:1;
+      instSaveToStorage();
+    } else if(irows&&irows.length===0&&installaties.length>0){
+      // Remote leeg maar lokaal hebben we data → upload
+      for(const inst of installaties){await sbSaveInstallatie(inst);}
+    }
+  }catch(e){
+    instLoadFromStorage();
+  }
   renderAll();renderResps();pushToTV();
 
   // Koppel ingelogde gebruiker aan verantwoordelijke na data laden
@@ -2055,37 +2404,45 @@ async function sbDeleteClosed(id){if(sbUrl)await sbFetch('closed_projects?id=eq.
 
 async function sbSaveB2cLead(l){
   if(!sbUrl){try{localStorage.setItem('blitz_b2c',JSON.stringify(b2cLeads));}catch{}return;}
-  const data={...l};const id=data.id;delete data.id;
+  const data={...l};
+  delete data._sbid; // don't store internal supabase ref in the data column
   data.updatedAt=new Date().toISOString();
   try{
-    if(id){
-      await sbFetch('b2c_leads?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({data})});
+    if(l._sbid){
+      // Update bestaande rij via Supabase row id
+      await sbFetch('b2c_leads?id=eq.'+l._sbid,{method:'PATCH',headers:{'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({data})});
     } else {
-      const r=await sbFetch('b2c_leads',{method:'POST',body:JSON.stringify({data})});
-      return r&&r[0]?r[0].id:null;
+      // Nieuwe rij aanmaken
+      const r=await sbFetch('b2c_leads',{method:'POST',headers:{'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({data})});
+      if(r&&r[0]){
+        // Sla supabase row id op op het lead object zodat volgende PATCH correct werkt
+        l._sbid=r[0].id;
+        try{localStorage.setItem('blitz_b2c',JSON.stringify(b2cLeads));}catch{}
+      }
     }
   }catch(e){console.warn('sbSaveB2cLead:',e.message);}
   try{localStorage.setItem('blitz_b2c',JSON.stringify(b2cLeads));}catch{}
 }
 async function sbDeleteB2cLead(id){
-  if(sbUrl){try{await sbFetch('b2c_leads?id=eq.'+id,{method:'DELETE'});}catch(e){console.warn('sbDeleteB2cLead:',e.message);}}
+  // Zoek de lead om de Supabase row id (_sbid) te vinden
+  const l=b2cLeads.find(x=>x.id===id)||{_sbid:id};
+  const sbid=l._sbid||id;
+  if(sbUrl){try{await sbFetch('b2c_leads?id=eq.'+sbid,{method:'DELETE'});}catch(e){console.warn('sbDeleteB2cLead:',e.message);}}
   try{localStorage.setItem('blitz_b2c',JSON.stringify(b2cLeads));}catch{}
 }
 async function sbSaveProspect(p){
   if(!sbUrl){try{localStorage.setItem('blitz_prospects',JSON.stringify(prospects));}catch{}return;}
-  const data={...p};const id=data.id;delete data.id;
+  const data={...p};
+  delete data._sbid;
   data.updatedAt=new Date().toISOString();
   try{
-    if(id){
-      await sbFetch('prospects?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({data})});
+    if(p._sbid){
+      await sbFetch('prospects?id=eq.'+p._sbid,{method:'PATCH',headers:{'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({data})});
     } else {
-      const r=await sbFetch('prospects',{method:'POST',body:JSON.stringify({data})});
-      return r&&r[0]?r[0].id:null;
+      const r=await sbFetch('prospects',{method:'POST',headers:{'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({data})});
+      if(r&&r[0])p._sbid=r[0].id;
     }
-  }catch(e){
-    // Tabel bestaat nog niet — maak aan via POST (Supabase geeft 404/400)
-    console.warn('sbSaveProspect error:',e.message);
-  }
+  }catch(e){console.warn('sbSaveProspect:',e.message);}
   try{localStorage.setItem('blitz_prospects',JSON.stringify(prospects));}catch{}
 }
 async function sbDeleteProspect(id){
@@ -2114,19 +2471,21 @@ function connectSupabase(){
   startSupabase(url,key);
 }
 
-function saveServiceRoleKey(){
+async function saveServiceRoleKey(){
   const key=document.getElementById('service-role-input').value.trim();
   if(!key){showToast('Vul de service role key in.');return;}
-  // Sla op en herstart Supabase client met nieuwe key
   const url=SUPABASE_URL;
   localStorage.setItem('blitz_sb',JSON.stringify({url,key}));
+  // Ook opslaan in Supabase settings zodat andere toestellen hem ophalen
+  try{
+    await sbFetch('settings',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify({key:'service_role_key',data:{srk:key}})});
+  }catch(e){console.warn('Kon service role key niet in Supabase opslaan:',e.message);}
   // Reset client zodat hij herstart met nieuwe key
   supabaseClient=null;
   const ok=initSupabaseClient();
   if(ok){
     document.getElementById('service-role-status').innerHTML='<span style="color:#00805e"><i class="ti ti-check" style="margin-right:4px"></i>Service role key opgeslagen — gebruikersbeheer actief.</span>';
     showToast('Service role key opgeslagen!');
-    // Herlaad gebruikerstab als die open is
     if(document.getElementById('pane-gebruikers').style.display!=='none'){loadGebruikers();}
   }else{
     document.getElementById('service-role-status').innerHTML='<span style="color:#a32d2d">Kon niet verbinden — controleer de key.</span>';
@@ -2140,16 +2499,31 @@ function toggleServiceKeyVisibility(){
   else{inp.type='password';eye.className='ti ti-eye';}
 }
 
-function loadServiceRoleKeyField(){
-  // Toon huidige key (gemaskeerd) als die al ingesteld is
-  const saved=JSON.parse(localStorage.getItem('blitz_sb')||'null');
+async function loadServiceRoleKeyField(){
   const statusEl=document.getElementById('service-role-status');
   if(!statusEl)return;
+  const saved=JSON.parse(localStorage.getItem('blitz_sb')||'null');
+  // Al actief via localStorage?
   if(saved?.key&&saved.key!==SUPABASE_ANON_KEY){
     statusEl.innerHTML='<span style="color:#00805e"><i class="ti ti-check" style="margin-right:4px"></i>Service role key actief.</span>';
-  }else{
-    statusEl.innerHTML='<span style="color:var(--tx3)">Nog geen service role key ingesteld.</span>';
+    return;
   }
+  // Probeer op te halen uit Supabase settings
+  if(sbUrl){
+    try{
+      const rows=await sbFetch('settings?key=eq.service_role_key');
+      const srk=rows&&rows[0]?rows[0].data?.srk:null;
+      if(srk){
+        // Gevonden — opslaan in localStorage en Supabase client herstarten
+        localStorage.setItem('blitz_sb',JSON.stringify({url:SUPABASE_URL,key:srk}));
+        supabaseClient=null;initSupabaseClient();
+        statusEl.innerHTML='<span style="color:#00805e"><i class="ti ti-check" style="margin-right:4px"></i>Service role key automatisch hersteld van Supabase.</span>';
+        showToast('Service role key hersteld ✓');
+        return;
+      }
+    }catch(e){console.warn('Kon service role key niet ophalen:',e.message);}
+  }
+  statusEl.innerHTML='<span style="color:var(--tx3)">Nog geen service role key ingesteld.</span>';
 }
 
 function startSupabase(url,key){
@@ -2163,11 +2537,11 @@ function startSupabase(url,key){
 }
 
 // ── RENDER ALL ────────────────────────────────────────
-function renderAll(){renderPills();renderDashboard();renderKanban();renderCalendar();b2cRenderDashOpvolgingen();}
+function renderAll(){renderPills();renderDashboard();renderKanban();renderCalendar();b2cRenderDashOpvolgingen();renderB2bDashOpvolgingen();}
 
 // ── PILLS ─────────────────────────────────────────────
 function renderPills(){
-  const names=respNames();
+  const names=respNames('sales');
   const list=['all',...names];
   ['pills-dash','pills-kanban'].forEach(cid=>{
     const el=document.getElementById(cid);if(!el)return;
@@ -2265,7 +2639,6 @@ function renderKanban(){
           <div class="tile-klant">${p.klant||''}</div>
           <div class="tile-bar-wrap"><div class="tile-bar" style="width:${pct}%;background:${col}"></div></div>
           <div class="tile-footer"><span class="tile-pct" style="color:${col}">${pct}%</span><div class="tile-right">${lpH}${rH}</div></div>
-          ${dtb}
         </div>
       </div>`;
     }).join('')||`<div class="kol-empty"><i class="ti ti-inbox" style="font-size:20px;display:block;margin-bottom:4px"></i>Leeg</div>`;
@@ -2370,6 +2743,7 @@ function onDragEnd(e){
   document.querySelectorAll('.kol-body.drag-over').forEach(el=>el.classList.remove('drag-over'));
   document.getElementById('trash-zone').classList.add('hidden');
   document.getElementById('trash-zone').classList.remove('drag-over-trash');
+  setTimeout(()=>{didDrag=false;},0);
 }
 function onDragOver(e){e.preventDefault();e.stopPropagation();e.currentTarget.classList.add('drag-over');}
 function onDragLeave(e){if(!e.currentTarget.contains(e.relatedTarget))e.currentTarget.classList.remove('drag-over');}
@@ -2379,12 +2753,16 @@ async function onDrop(e,newStatus){
   if(dragSourceIdx===null)return;
   const p=projects[dragSourceIdx];const oldStat=parseInt(p.status);
   if(oldStat===newStatus){dragSourceIdx=null;return;}
+  const wasAlreadySold=p.pct===100;
   didDrag=true;p.status=String(newStatus);p.pct=DEFAULT_PCT[newStatus];
-  if(p.pct===100&&!prevSoldSet.has(p.naam)){prevSoldSet.add(p.naam);fireConfetti(p);}
-  // Auto datum verkoop bij 100%
+  if(p.pct===100&&!(prevSoldSet&&prevSoldSet.has(p.naam))){if(prevSoldSet)prevSoldSet.add(p.naam);fireConfetti(p);}
   if(p.pct===100&&!p.sold_at)p.sold_at=today();
   renderAll();showToast(`"${p.naam}" → ${STATUSES[newStatus]}`);
   try{await sbSaveProject(p);}catch{lsSave();}
+  // Gewonnen flow triggeren als nieuw op 100%
+  if(p.pct===100&&!wasAlreadySold){
+    setTimeout(()=>b2bTriggerGewonnenFlow(p),400);
+  }
   dragSourceIdx=null;
 }
 
@@ -2440,7 +2818,7 @@ function openModal(idx){
   editingIdx=idx;editingId=null;
   const respSel=document.getElementById('m-resp');
   const curResp=(idx!==null&&projects[idx])?(projects[idx].resp||''):'';
-  respSel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option value="${r}"${r===curResp?' selected':''}>${r}</option>`).join('');
+  respSel.innerHTML='<option value="">— kies —</option>'+respNames('sales').map(r=>`<option value="${r}"${r===curResp?' selected':''}>${r}</option>`).join('');
 
   if(idx!==null&&projects[idx]){
     const p=projects[idx];editingId=p.id||null;
@@ -2459,8 +2837,13 @@ function openModal(idx){
     document.getElementById('m-omzet').value=p.omzet||'';
     document.getElementById('m-lp').value=p.lp||'';
     document.getElementById('m-offertenr').value=p.offertenr||'';
-    document.getElementById('m-datum').value=p.datum||'';
-    document.getElementById('m-notitie').value=p.notitie||'';
+    // Installatiepartner
+    const partnerNaam=p.installatiepartner||'';
+    document.getElementById('m-partner-naam').value=partnerNaam;
+    document.getElementById('m-partner-search').value=partnerNaam;
+    const pchip=document.getElementById('m-partner-chip');
+    if(partnerNaam){pchip.style.display='flex';pchip.innerHTML=`<i class="ti ti-tools" style="font-size:11px"></i> ${partnerNaam}<button onclick="mPartnerClear()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;font-size:13px" title="Verwijderen"><i class="ti ti-x"></i></button>`;}
+    else{pchip.style.display='none';}
     const pct=p.pct!=null?p.pct:DEFAULT_PCT[parseInt(p.status)||0];
     document.getElementById('m-pct').value=pct;
     document.getElementById('m-pct-label').textContent=pct+'%';
@@ -2468,24 +2851,28 @@ function openModal(idx){
     currentAttachments=Array.isArray(p.attachments)?[...p.attachments]:[];
     renderAttachList();
     currentTijdlijn=Array.isArray(p.tijdlijn)?[...p.tijdlijn]:[];
-    document.getElementById('tl-datum').value=today();
+    currentB2bOpvolgingen=Array.isArray(p.opvolgingen)?[...p.opvolgingen]:[];
     renderTijdlijn();
+    b2bRenderOpvolgingen();
   } else {
     document.getElementById('modal-title').textContent='Nieuw project';
-    ['m-naam','m-klant','m-btw','m-contact','m-contactgsm','m-contactemail','m-adres','m-product','m-info','m-omzet','m-lp','m-offertenr','m-datum','m-notitie'].forEach(id=>document.getElementById(id).value='');
+    ['m-naam','m-klant','m-btw','m-contact','m-contactgsm','m-contactemail','m-adres','m-product','m-info','m-omzet','m-lp','m-offertenr','m-partner-search','m-partner-naam'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('m-partner-chip').style.display='none';
     document.getElementById('m-status').value='0';
     document.getElementById('m-pct').value=5;document.getElementById('m-pct-label').textContent='5%';
     document.getElementById('m-resp').value='';
     document.getElementById('m-delete-btn').style.display='none';
     currentAttachments=[];renderAttachList();
     currentTijdlijn=[];
-    document.getElementById('tl-datum').value=today();
+    currentB2bOpvolgingen=[];
     renderTijdlijn();
+    b2bRenderOpvolgingen();
   }
   document.getElementById('modal-overlay').classList.add('open');
 }
 
 function closeModal(){document.getElementById('modal-overlay').classList.remove('open');editingIdx=null;editingId=null;}
+function closeModalSafe(){closeModal();}
 
 function onStatusChange(){
   const si=parseInt(document.getElementById('m-status').value);
@@ -2521,34 +2908,69 @@ async function saveProject(){
     lp:document.getElementById('m-lp').value||'',
     offertenr:document.getElementById('m-offertenr').value.trim()||'',
     omzet:(()=>{const v=document.getElementById('m-omzet').value.trim();if(v)return v;const lp=parseInt(document.getElementById('m-lp').value)||0;return lp>0?String(lp*1200):'';})(),
-    datum:document.getElementById('m-datum').value||'',
-    notitie:document.getElementById('m-notitie').value.trim()||'',
+    datum:'',
+    notitie:'',
     attachments:[...currentAttachments],
     tijdlijn:[...currentTijdlijn],
+    opvolgingen:[...currentB2bOpvolgingen],
+    installatiepartner:document.getElementById('m-partner-naam').value.trim()||'',
     sold_at:(pct===100&&!wasSold)?today():(oldSoldAt||'')
   };
   if(editingId)project.id=editingId;
+  // Sla editingIdx op vóór closeModal() die het reset
+  const savedEditingIdx=editingIdx;
+  // Auto-log wijzigingen
+  if(editingIdx!==null&&projects[editingIdx]){
+    const old=projects[editingIdx];
+    const velden=[
+      ['naam','Naam'],['klant','Klant'],['status','Status'],['resp','Verantwoordelijke'],
+      ['adres','Adres'],['product','Product'],['omzet','Omzet'],['lp','Laadpunten'],
+      ['offertenr','Offertenummer'],['installatiepartner','Partner'],['info','Info'],['pct','Kans%']
+    ];
+    const changed=velden.filter(([k])=>String(old[k]||'')!==String(project[k]||'')).map(([,l])=>l);
+    if(changed.length)currentTijdlijn.push(logEntry('Bewerkt: '+changed.join(', ')));
+  } else if(editingIdx===null){
+    currentTijdlijn.push(logEntry('Project aangemaakt'));
+  }
+  project.tijdlijn=[...currentTijdlijn];
+  // Bij nieuw verkocht (pct=100) → gewonnen flow tonen
+  const isNieuwVerkocht=pct===100&&!wasSold;
   closeModal();showToast('Project opgeslagen.');
   if(pct===100&&!wasSold){prevSoldSet.add(naam);fireConfetti(project);}
   try{
     const newId=await sbSaveProject(project);
     if(newId&&!project.id)project.id=newId;
     if(!sbUrl){
-      if(editingIdx!==null)projects[editingIdx]=project;
+      if(savedEditingIdx!==null)projects[savedEditingIdx]=project;
       else projects.push(project);
       lsSave();renderAll();
     }
   }catch{
-    if(editingIdx!==null)projects[editingIdx]=project;
+    if(savedEditingIdx!==null)projects[savedEditingIdx]=project;
     else projects.push(project);
     lsSave();renderAll();
     showToast('Lokaal opgeslagen.');
+  }
+  // Gewonnen flow triggeren als nieuw verkocht
+  if(isNieuwVerkocht){
+    setTimeout(()=>b2bTriggerGewonnenFlow(project),400);
   }
 }
 
 async function deleteProject(){
   if(!confirm('Project verwijderen?'))return;
-  const idx=editingIdx,id=editingId;closeModal();
+  const idx=editingIdx,id=editingId;
+  // Verwijder ook gelinkte installatietickets
+  if(id){
+    const linkId='b2b-'+id;
+    const gelinkt=installaties.filter(i=>i.linkId===linkId);
+    gelinkt.forEach(i=>sbDeleteInstallatie(i.id));
+    if(gelinkt.length>0){
+      installaties=installaties.filter(i=>i.linkId!==linkId);
+      instSaveToStorage();
+    }
+  }
+  closeModal();
   if(sbUrl&&id)sbDeleteProject(id);
   else{if(idx!==null)projects.splice(idx,1);lsSave();renderAll();}
 }
@@ -2715,15 +3137,8 @@ function renderAttachList(){
 function fireConfetti(p){
   const vn=(p&&p.resp)?p.resp.split(' ')[0]:'';
   const pn=(p&&p.naam)?p.naam:'';
-  const o=document.createElement('div');o.style.cssText='position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden';document.body.appendChild(o);
-  const bg=document.createElement('div');bg.style.cssText='position:absolute;inset:0;background:#00DFA3';o.appendChild(bg);
-  const m=document.createElement('div');m.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;animation:popIn .5s ease;white-space:nowrap';
-  m.innerHTML=`<div style="font-size:80px;margin-bottom:16px">🎉</div><div style="font-family:'Poppins',sans-serif;font-size:64px;font-weight:900;color:#1D252D;letter-spacing:-1px;margin-bottom:20px">Proficiat!</div><div style="font-family:'Inter',sans-serif;font-size:28px;color:#1D252D;font-weight:500;line-height:1.5;opacity:.85">Proficiat ${vn} met de verkoop van<br><strong style="font-family:'Poppins',sans-serif;font-weight:800;font-size:32px">${pn}</strong></div>`;
-  o.appendChild(m);
-  const cls=['#1D252D','#fff','#00b882','#D9D9D6','#fff','#1D252D','#00DFA3'];
-  for(let i=0;i<150;i++){const c=document.createElement('div');const sz=Math.random()*14+5;const rect=Math.random()>.4;c.style.cssText=`position:absolute;width:${sz}px;height:${rect?sz*.4:sz}px;background:${cls[Math.floor(Math.random()*cls.length)]};left:${Math.random()*100}%;top:-30px;border-radius:${rect?3:50}%;animation:fall ${1.5+Math.random()*2.5}s ${Math.random()*1.8}s linear forwards`;o.appendChild(c);}
+  // Enkel TV-scherm: grote felicitatie — geen confetti op het werkblad
   if(dashWindow&&!dashWindow.closed){try{dashWindow.triggerSale&&dashWindow.triggerSale(vn,pn);}catch{}}
-  setTimeout(()=>o.remove(),8000);
 }
 
 // ── CALENDAR ──────────────────────────────────────────
@@ -2770,18 +3185,8 @@ function renderCalendar(){
     byDay[key].items.push(item);
   });
 
-  evEl.innerHTML=`<div class="cal-ev-title"><i class="ti ti-phone" style="margin-right:4px"></i>Opvolgingen</div>`
-    +Object.entries(byDay).map(([dateStr,{diff,items}])=>`
-      <div style="font-size:11px;font-weight:700;color:var(--tx2);margin:10px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--bd)">${fmtDayHeader(diff)}</div>
-      ${items.map(({p})=>`<div class="cal-ev-item" onclick="openModal(${projects.indexOf(p)})">
-        <div class="cal-ev-dot" style="background:${pctColor(p.pct!=null?p.pct:DEFAULT_PCT[parseInt(p.status)]||5)}"></div>
-        <div class="cal-ev-info">
-          <div class="cal-ev-naam">${p.naam||''}</div>
-          <div class="cal-ev-date">${p.resp?' · '+p.resp:''}</div>
-          ${p.notitie?`<div class="cal-ev-note">${p.notitie}</div>`:''}
-        </div>
-      </div>`).join('')}
-    `).join('');
+  // Oude opvolgdatum sectie verborgen — wordt vervangen door het nieuwe opvolgingensysteem
+  document.getElementById('cal-events').style.display='none';
 }
 
 // ── EXCEL EXPORT ──────────────────────────────────────
@@ -2848,6 +3253,11 @@ let projects=${pData};let closed=${cData};
 let prevSold=new Set(projects.filter(p=>p.pct===100).map(p=>p.naam));
 function pc(p){const t=Math.max(0,Math.min(1,p/100));return'hsl('+Math.round(30+t*100)+','+Math.round(90-t*25)+'%,'+Math.round(48-t*10)+'%)';}
 function today(){return new Date().toISOString().split('T')[0];}
+function nowTijdstip(){return new Date().toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});}
+function logEntry(tekst){
+  const gebruiker=currentUser?.user_metadata?.naam||currentUser?.email||'';
+  return {datum:today(),tijdstip:nowTijdstip(),gebruiker,tekst};
+}
 const PAGE_SIZE=7;
 let tvPage=0;
 let tvPageTimer=null;
@@ -2943,20 +3353,30 @@ async function sbDeleteKlant(id){
   if(sbUrl)await sbFetch('klanten?id=eq.'+id,{method:'DELETE'});
 }
 
+let crmPartnerFilter=false;
+function crmTogglePartnerFilter(){
+  crmPartnerFilter=!crmPartnerFilter;
+  const btn=document.getElementById('crm-partner-filter');
+  if(btn){btn.style.background=crmPartnerFilter?'var(--green)':'';btn.style.color=crmPartnerFilter?'#fff':'';}
+  renderCrm();
+}
+
 function renderCrm(){
   const el=document.getElementById('crm-list');if(!el)return;
   const q=(document.getElementById('crm-search')?.value||'').toLowerCase();
-  const list=klanten.filter(k=>{
+  let list=klanten.filter(k=>{
+    if(crmPartnerFilter&&!k.isInstallatiepartner)return false;
     if(!q)return true;
     return(k.naam||'').toLowerCase().includes(q)||(k.btw||'').toLowerCase().includes(q)||(k.contact||'').toLowerCase().includes(q);
   });
   if(!list.length){
     el.innerHTML='<div class="empty-state"><i class="ti ti-building"></i>Geen klanten gevonden.</div>';return;
   }
-  el.innerHTML=list.map((k,i)=>{
+  el.innerHTML=list.map((k)=>{
     const idx=klanten.indexOf(k);
+    const partnerBadge=k.isInstallatiepartner?`<span style="font-size:10px;background:rgba(232,93,4,.12);color:#e85d04;padding:1px 6px;border-radius:4px;font-weight:600;margin-left:4px"><i class="ti ti-tools" style="font-size:9px"></i> Partner</span>`:'';
     return`<div class="crm-row" onclick="openCrmModal(${idx})">
-      <div><div class="crm-naam">${k.naam||''}</div><div class="crm-sub">${k.btw||''}</div></div>
+      <div><div class="crm-naam">${k.naam||''}${partnerBadge}</div><div class="crm-sub">${k.btw||''}</div></div>
       <div class="crm-cell">${k.adres||''}</div>
       <div><div class="crm-cell" style="font-weight:500">${k.contact||''}</div><div class="crm-sub">${k.functie||''}</div></div>
       <div><div class="crm-cell">${k.contactgsm||k.tel||''}</div><div class="crm-sub">${k.contactemail||k.email||''}</div></div>
@@ -2980,10 +3400,12 @@ function openCrmModal(idx){
     document.getElementById('crm-contactgsm').value=k.contactgsm||'';
     document.getElementById('crm-contactemail').value=k.contactemail||'';
     document.getElementById('crm-notities').value=k.notities||'';
-    document.getElementById('crm-del-btn').style.display='inline-flex';
+    document.getElementById('crm-is-partner').checked=!!k.isInstallatiepartner;
+    document.getElementById('crm-del-btn').style.display=heeftRecht('crm_bewerken')?'inline-flex':'none';
   }else{
     document.getElementById('crm-modal-title').textContent='Nieuwe klant';
     ['crm-naam','crm-btw','crm-tel','crm-email','crm-adres','crm-contact','crm-functie','crm-contactgsm','crm-contactemail','crm-notities'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('crm-is-partner').checked=false;
     document.getElementById('crm-del-btn').style.display='none';
   }
   document.getElementById('crm-modal').classList.add('open');
@@ -3007,7 +3429,8 @@ async function saveCrmKlant(){
     functie:document.getElementById('crm-functie').value.trim(),
     contactgsm:document.getElementById('crm-contactgsm').value.trim(),
     contactemail:document.getElementById('crm-contactemail').value.trim(),
-    notities:document.getElementById('crm-notities').value.trim()
+    notities:document.getElementById('crm-notities').value.trim(),
+    isInstallatiepartner:document.getElementById('crm-is-partner').checked
   };
   if(editingCrmId)k.id=editingCrmId;
   closeCrmModal();
@@ -3276,6 +3699,10 @@ async function onLoggedIn(user){
   const kanGebruikersBeheer=currentRole==='admin'||rol==='manager';
   document.getElementById('tab-gebruikers').style.display=kanGebruikersBeheer?'inline-flex':'none';
 
+  // CRM tab: iedereen met crm_lezen recht
+  const crmTab=document.getElementById('tab-crm');
+  if(crmTab)crmTab.style.display=heeftRecht('crm_lezen')?'':'none';
+
   // Naam tonen
   const userNaam=user.user_metadata?.naam||(user.user_metadata?.voornaam?(user.user_metadata.voornaam+' '+(user.user_metadata.achternaam||'')).trim():'')||'';
   document.getElementById('current-user-name').textContent=userNaam||user.email;
@@ -3298,15 +3725,14 @@ function scheduleMidnightLogout(){
 // ── GEBRUIKERSBEHEER ───────────────────────────────────
 // Rechten-matrix
 const RECHTEN = {
-  // [afdeling][rol] → array van permissies
   hoofdadmin: { operator: ['alles'], manager: ['alles'] },
   sales: {
-    operator: ['b2c_lezen','b2c_bewerken','b2b_lezen','b2b_bewerken','agenda_sales','installaties_lezen'],
-    manager:  ['b2c_lezen','b2c_bewerken','b2b_lezen','b2b_bewerken','agenda_sales','installaties_lezen','sales_beheer']
+    operator: ['b2c_lezen','b2c_bewerken','b2b_lezen','b2b_bewerken','agenda_sales','installaties_lezen','crm_lezen','crm_bewerken'],
+    manager:  ['b2c_lezen','b2c_bewerken','b2b_lezen','b2b_bewerken','agenda_sales','installaties_lezen','sales_beheer','crm_lezen','crm_bewerken']
   },
   service: {
-    operator: ['b2c_lezen','b2b_lezen','installaties_lezen','installaties_bewerken','agenda_service'],
-    manager:  ['b2c_lezen','b2b_lezen','installaties_lezen','installaties_bewerken','agenda_service','service_beheer']
+    operator: ['b2c_lezen','b2b_lezen','installaties_lezen','installaties_bewerken','agenda_service','crm_lezen','crm_bewerken'],
+    manager:  ['b2c_lezen','b2b_lezen','installaties_lezen','installaties_bewerken','agenda_service','service_beheer','crm_lezen','crm_bewerken']
   }
 };
 
@@ -3493,6 +3919,10 @@ function openUserEditModal(userId){
   document.getElementById('ue-afdeling').value=afdeling;
   document.getElementById('ue-rol').value=rol;
   document.getElementById('ue-rol-wrap').style.display=afdeling==='hoofdadmin'?'none':'block';
+  const verantw=u.user_metadata?.verantwoordelijk||{};
+  document.getElementById('ue-verantw-sales').checked=verantw.sales===true;
+  document.getElementById('ue-verantw-service').checked=verantw.service===true;
+  document.getElementById('ue-verantw-wrap').style.display=afdeling==='hoofdadmin'?'block':'none';
   document.getElementById('user-edit-modal').classList.add('open');
 }
 
@@ -3507,7 +3937,11 @@ async function saveUserEdit(){
   const rol=afdeling==='hoofdadmin'?'manager':document.getElementById('ue-rol').value;
   const gsm=document.getElementById('ue-gsm').value.trim();
   const functie=document.getElementById('ue-functie').value.trim();
-  const metadata={naam,voornaam,achternaam,afdeling,rol,gsm,functie,role:afdeling==='hoofdadmin'?'admin':'user'};
+  const verantwoordelijk=afdeling==='hoofdadmin'?{
+    sales:document.getElementById('ue-verantw-sales').checked,
+    service:document.getElementById('ue-verantw-service').checked
+  }:{sales:afdeling==='sales',service:afdeling==='service'};
+  const metadata={naam,voornaam,achternaam,afdeling,rol,gsm,functie,role:afdeling==='hoofdadmin'?'admin':'user',verantwoordelijk};
   try{
     await supabaseClient.auth.admin.updateUserById(userEditId,{user_metadata:metadata});
     // Sync naar resps
@@ -3601,7 +4035,7 @@ function agGetFiltered(){
 
 function agUpdateRespDropdown(){
   const sel=document.getElementById('ag-resp-filter');if(!sel)return;
-  const names=respNames();
+  const names=respNames(); // agenda = iedereen, geen filter op afdeling
   const userNaam=currentUser?.user_metadata?.naam||'';
   const sorted=[...names].sort((a,b)=>{
     if(a===userNaam)return -1;if(b===userNaam)return 1;return a.localeCompare(b);
@@ -3728,23 +4162,230 @@ function agRenderAankomende(){
   });
 }
 
-function agOpenNieuw(datum=null){
-  agEditId=null;
-  document.getElementById('ag-nieuw-titel').textContent='Afspraak toevoegen';
-  document.getElementById('ag-titel').value='';
-  document.getElementById('ag-datum').value=datum||agCalSelDag||today();
-  document.getElementById('ag-uur').value='09:00';
-  document.getElementById('ag-type').value='B2C';
-  document.getElementById('ag-link-search').value='';
+// ── AGENDA WIZARD STATE ──
+let agWizHoofd=''; // 'service' | 'sales'
+let agWizSub='';   // 'installatie'|'keuring'|'andere' of 'b2c'|'b2b'|'andere'
+let agWizTicketId=null;
+let agWizB2cId=null;
+let agWizB2bId=null;
+let agWizB2bType=''; // 'project' | 'prospect'
+const AG_STAPPEN=['ag-stap-0','ag-stap-1-service','ag-stap-1-sales','ag-stap-2-ticket','ag-stap-2-b2c','ag-stap-2-b2b','ag-stap-2-andere'];
+
+function agWizToonStap(stap){
+  AG_STAPPEN.forEach(s=>{const el=document.getElementById(s);if(el)el.style.display='none';});
+  const el=document.getElementById(stap);if(el)el.style.display='block';
+  const saveBtn=document.getElementById('ag-save-btn');
+  const toonSave=['ag-stap-2-ticket','ag-stap-2-b2c','ag-stap-2-b2b','ag-stap-2-andere'].includes(stap);
+  if(saveBtn)saveBtn.style.display=toonSave?'inline-flex':'none';
+}
+
+function agKiesHoofd(keuze){
+  agWizHoofd=keuze;
+  agWizToonStap(keuze==='service'?'ag-stap-1-service':'ag-stap-1-sales');
+}
+
+function agKiesService(sub){
+  agWizSub=sub;
+  if(sub==='installatie'||sub==='keuring'){
+    document.getElementById('ag-ticket-label').textContent=sub==='installatie'?'Kies een installatieticket *':'Kies een installatieticket voor keuring *';
+    document.getElementById('ag-ticket-search').value='';
+    document.getElementById('ag-ticket-id').value='';
+    document.getElementById('ag-ticket-chip').style.display='none';
+    document.getElementById('ag-ticket-info').style.display='none';
+    document.getElementById('ag-ticket-dropdown').style.display='none';
+    const rsel=document.getElementById('ag-resp');
+    rsel.innerHTML='<option value="">— kies —</option>'+respNames('service').map(r=>`<option>${r}</option>`).join('');
+    agWizToonStap('ag-stap-2-ticket');
+  } else {
+    // Andere service
+    document.getElementById('ag-titel4').value='';
+    document.getElementById('ag-datum4').value=agCalSelDag||today();
+    document.getElementById('ag-uur4').value='09:00';
+    document.getElementById('ag-notitie4').value='';
+    const rsel=document.getElementById('ag-resp4');
+    rsel.innerHTML='<option value="">— kies —</option>'+respNames('service').map(r=>`<option>${r}</option>`).join('');
+    agWizToonStap('ag-stap-2-andere');
+  }
+}
+
+function agKiesSales(sub){
+  agWizSub=sub;
+  if(sub==='b2c'){
+    document.getElementById('ag-b2c-search').value='';
+    document.getElementById('ag-b2c-id').value='';
+    document.getElementById('ag-b2c-chip').style.display='none';
+    document.getElementById('ag-b2c-dropdown').style.display='none';
+    document.getElementById('ag-titel').value='';
+    document.getElementById('ag-datum2').value=agCalSelDag||today();
+    document.getElementById('ag-uur2').value='09:00';
+    document.getElementById('ag-notitie2').value='';
+    const rsel=document.getElementById('ag-resp2');
+    rsel.innerHTML='<option value="">— kies —</option>'+respNames('sales').map(r=>`<option>${r}</option>`).join('');
+    agWizToonStap('ag-stap-2-b2c');
+  } else if(sub==='b2b'){
+    document.getElementById('ag-b2b-search').value='';
+    document.getElementById('ag-b2b-id').value='';
+    document.getElementById('ag-b2b-chip').style.display='none';
+    document.getElementById('ag-b2b-dropdown').style.display='none';
+    document.getElementById('ag-titel3').value='';
+    document.getElementById('ag-datum3').value=agCalSelDag||today();
+    document.getElementById('ag-uur3').value='09:00';
+    document.getElementById('ag-notitie3').value='';
+    const rsel=document.getElementById('ag-resp3');
+    rsel.innerHTML='<option value="">— kies —</option>'+respNames('sales').map(r=>`<option>${r}</option>`).join('');
+    agWizToonStap('ag-stap-2-b2b');
+  } else {
+    document.getElementById('ag-titel4').value='';
+    document.getElementById('ag-datum4').value=agCalSelDag||today();
+    document.getElementById('ag-uur4').value='09:00';
+    document.getElementById('ag-notitie4').value='';
+    const rsel=document.getElementById('ag-resp4');
+    rsel.innerHTML='<option value="">— kies —</option>'+respNames('sales').map(r=>`<option>${r}</option>`).join('');
+    agWizToonStap('ag-stap-2-andere');
+  }
+}
+
+function agTerug(stap){
+  if(stap===0)agWizToonStap('ag-stap-0');
+  else if(stap===1){
+    agWizToonStap(agWizHoofd==='service'?'ag-stap-1-service':'ag-stap-1-sales');
+  }
+}
+
+// Ticket zoeken (installaties)
+function agTicketSearch(q){
+  const dd=document.getElementById('ag-ticket-dropdown');
+  if(!q||q.length<1){dd.style.display='none';return;}
+  const ql=q.toLowerCase();
+  const res=installaties.filter(i=>(i.naam||'').toLowerCase().includes(ql)||(i.adres||'').toLowerCase().includes(ql)||(i.project||'').toLowerCase().includes(ql)).slice(0,8);
+  if(!res.length){dd.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">Geen tickets gevonden</div>';dd.style.display='block';return;}
+  dd.innerHTML=res.map((i,idx)=>`<div data-ti="${idx}" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bd);transition:background .1s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+    <div style="font-size:13px;font-weight:600">${i.naam||i.project||'—'}</div>
+    <div style="font-size:11px;color:var(--tx3)">${i.adres||''} ${i.fase?'· '+i.fase:''}</div>
+  </div>`).join('');
+  dd._res=res;
+  dd.querySelectorAll('[data-ti]').forEach(el=>{
+    el.addEventListener('click',function(){agTicketSelect(dd._res[parseInt(this.dataset.ti)]);});
+  });
+  dd.style.display='block';
+}
+
+function agTicketSelect(inst){
+  document.getElementById('ag-ticket-id').value='inst-'+inst.id;
+  document.getElementById('ag-ticket-search').value=inst.naam||inst.project||'';
+  document.getElementById('ag-ticket-dropdown').style.display='none';
+  const chip=document.getElementById('ag-ticket-chip');
+  chip.style.display='flex';
+  chip.innerHTML=`<i class="ti ti-plug" style="font-size:12px"></i> ${inst.naam||inst.project}<span style="font-size:10px;opacity:.7;margin-left:4px">${inst.fase||''}</span><button onclick="agTicketClear()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px" title="Ontkoppelen"><i class="ti ti-x"></i></button>`;
+  // Toon ticket info
+  const info=document.getElementById('ag-ticket-info');
+  info.style.display='block';
+  info.innerHTML=`<b>${inst.naam||inst.project||'—'}</b><br>${inst.adres?'📍 '+inst.adres+'<br>':''}${inst.tel?'📞 '+inst.tel+'<br>':''}${inst.resp?'👤 '+inst.resp:''}`;
+  // Vul datum/uur/resp in vanuit ticket
+  if(agWizSub==='installatie'&&inst.datumInst)document.getElementById('ag-datum').value=inst.datumInst;
+  if(agWizSub==='installatie'&&inst.uurInst)document.getElementById('ag-uur').value=inst.uurInst;
+  if(agWizSub==='keuring'&&inst.datumKeur)document.getElementById('ag-datum').value=inst.datumKeur;
+  if(agWizSub==='keuring'&&inst.uurKeur)document.getElementById('ag-uur').value=inst.uurKeur;
+  if(inst.resp){const rsel=document.getElementById('ag-resp');if(rsel)[...rsel.options].forEach(o=>{if(o.value===inst.resp)o.selected=true;});}
+  agWizTicketId=inst.id;
+  // Zet link velden
+  document.getElementById('ag-link-id').value='inst-'+inst.id;
+  document.getElementById('ag-link-label').value=inst.naam||inst.project||'';
+}
+
+function agTicketClear(){
+  document.getElementById('ag-ticket-id').value='';
+  document.getElementById('ag-ticket-search').value='';
+  document.getElementById('ag-ticket-chip').style.display='none';
+  document.getElementById('ag-ticket-info').style.display='none';
   document.getElementById('ag-link-id').value='';
   document.getElementById('ag-link-label').value='';
-  agLinkChipHide();
-  document.getElementById('ag-notitie').value='';
+  agWizTicketId=null;
+}
+
+// B2C lead zoeken
+function agB2cSearch(q){
+  const dd=document.getElementById('ag-b2c-dropdown');
+  if(!q||q.length<1){dd.style.display='none';return;}
+  const ql=q.toLowerCase();
+  const res=b2cLeads.filter(l=>l.status!=='Verloren'&&(b2cNaam(l).toLowerCase().includes(ql)||(l.adres||'').toLowerCase().includes(ql)||(l.tel||'').includes(q))).slice(0,8);
+  if(!res.length){dd.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">Geen leads gevonden</div>';dd.style.display='block';return;}
+  dd.innerHTML=res.map((l,i)=>`<div data-bi="${i}" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bd);transition:background .1s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+    <div style="font-size:13px;font-weight:600">${b2cNaam(l)}</div>
+    <div style="font-size:11px;color:var(--tx3)">${l.adres||l.tel||'—'} · ${l.status}</div>
+  </div>`).join('');
+  dd._res=res;
+  dd.querySelectorAll('[data-bi]').forEach(el=>{
+    el.addEventListener('click',function(){agB2cSelect(dd._res[parseInt(this.dataset.bi)]);});
+  });
+  dd.style.display='block';
+}
+
+function agB2cSelect(l){
+  document.getElementById('ag-b2c-id').value='b2c-'+l.id;
+  document.getElementById('ag-b2c-search').value=b2cNaam(l);
+  document.getElementById('ag-b2c-dropdown').style.display='none';
+  const chip=document.getElementById('ag-b2c-chip');
+  chip.style.display='flex';
+  chip.innerHTML=`<i class="ti ti-user" style="font-size:12px"></i> ${b2cNaam(l)}<span style="font-size:10px;opacity:.7;margin-left:4px">${l.status}</span><button onclick="agB2cClear()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px"><i class="ti ti-x"></i></button>`;
+  agWizB2cId=l.id;
+  if(l.resp){const rsel=document.getElementById('ag-resp2');if(rsel)[...rsel.options].forEach(o=>{if(o.value===l.resp)o.selected=true;});}
+}
+
+function agB2cClear(){
+  document.getElementById('ag-b2c-id').value='';
+  document.getElementById('ag-b2c-search').value='';
+  document.getElementById('ag-b2c-chip').style.display='none';
+  agWizB2cId=null;
+}
+
+// B2B project/prospect zoeken
+function agB2bSearch(q){
+  const dd=document.getElementById('ag-b2b-dropdown');
+  if(!q||q.length<1){dd.style.display='none';return;}
+  const ql=q.toLowerCase();
+  const res=[];
+  projects.filter(p=>(p.naam||'').toLowerCase().includes(ql)||(p.klant||'').toLowerCase().includes(ql)).slice(0,5).forEach(p=>res.push({id:'b2b-'+(p.id||p._rowid),label:p.naam||'',sub:p.klant||'',type:'Project',obj:p}));
+  prospects.filter(p=>(p.naam||'').toLowerCase().includes(ql)).slice(0,4).forEach(p=>res.push({id:'prosp-'+p.id,label:p.naam||'',sub:p.project||'',type:'Prospect',obj:p}));
+  if(!res.length){dd.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">Geen resultaten gevonden</div>';dd.style.display='block';return;}
+  dd.innerHTML=res.map((r,i)=>`<div data-ri="${i}" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;transition:background .1s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+    <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(83,74,183,.12);color:#534AB7;white-space:nowrap">${r.type}</span>
+    <div><div style="font-size:13px;font-weight:600">${r.label}</div><div style="font-size:11px;color:var(--tx3)">${r.sub}</div></div>
+  </div>`).join('');
+  dd._res=res;
+  dd.querySelectorAll('[data-ri]').forEach(el=>{
+    el.addEventListener('click',function(){agB2bSelect(dd._res[parseInt(this.dataset.ri)]);});
+  });
+  dd.style.display='block';
+}
+
+function agB2bSelect(r){
+  document.getElementById('ag-b2b-id').value=r.id;
+  document.getElementById('ag-b2b-search').value=r.label;
+  document.getElementById('ag-b2b-dropdown').style.display='none';
+  const chip=document.getElementById('ag-b2b-chip');
+  chip.style.display='flex';
+  chip.innerHTML=`<i class="ti ti-briefcase" style="font-size:12px"></i> ${r.label}<span style="font-size:10px;opacity:.7;margin-left:4px">${r.type}</span><button onclick="agB2bClear()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px"><i class="ti ti-x"></i></button>`;
+  agWizB2bId=r.id;agWizB2bType=r.type;
+  if(r.obj?.resp){const rsel=document.getElementById('ag-resp3');if(rsel)[...rsel.options].forEach(o=>{if(o.value===r.obj.resp)o.selected=true;});}
+}
+
+function agB2bClear(){
+  document.getElementById('ag-b2b-id').value='';
+  document.getElementById('ag-b2b-search').value='';
+  document.getElementById('ag-b2b-chip').style.display='none';
+  agWizB2bId=null;
+}
+
+function agOpenNieuw(datum=null){
+  agEditId=null;
+  agWizHoofd='';agWizSub='';agWizTicketId=null;agWizB2cId=null;agWizB2bId=null;
+  document.getElementById('ag-nieuw-titel').textContent='Afspraak toevoegen';
   document.getElementById('ag-del-btn').style.display='none';
-  // Vul resp dropdown
-  const sel=document.getElementById('ag-resp');
-  sel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option value="${r}">${r}</option>`).join('');
-  sel.value='';
+  // Reset datum in alle stappen
+  const d=datum||agCalSelDag||today();
+  ['ag-datum','ag-datum2','ag-datum3','ag-datum4'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=d;});
+  agWizToonStap('ag-stap-0');
   document.getElementById('ag-nieuw-overlay').classList.add('open');
 }
 
@@ -3771,37 +4412,66 @@ function agOpenEditItem(a){
 
 function agOpenEdit(id){
   const sid=String(id);
-  // B2C visit — open lead dossier
-  if(sid.startsWith('b2c-')){
-    const leadId=parseInt(sid.replace('b2c-',''));
-    b2cOpenDetail(leadId);
-    return;
-  }
-  // B2B visit — open project modal
-  if(sid.startsWith('b2b-')){
-    const projId=sid.replace('b2b-','');
-    const idx=projects.findIndex(p=>p.id===projId||p._rowid===projId);
-    if(idx>-1)openModal(idx);
-    return;
-  }
-  // Gewone agenda-afspraak
+  if(sid.startsWith('b2c-')){b2cOpenDetail(parseInt(sid.replace('b2c-','')));return;}
+  if(sid.startsWith('b2b-')){const idx=projects.findIndex(p=>p.id===sid.replace('b2b-','')||p._rowid===sid.replace('b2b-',''));if(idx>-1)openModal(idx);return;}
   const a=agAfspraken.find(x=>x.id===id);if(!a)return;
   agEditId=id;
+  agWizHoofd=(['Installatie','Keuring','Andere'].includes(a.type)&&a.type!=='Andere')?'service':'sales';
+  agWizSub=a.linkType||'andere';
+  agWizTicketId=null;agWizB2cId=null;agWizB2bId=null;
+
   document.getElementById('ag-nieuw-titel').textContent='Afspraak bewerken';
-  document.getElementById('ag-titel').value=a.titel||'';
-  document.getElementById('ag-datum').value=a.datum||'';
-  document.getElementById('ag-uur').value=a.uur||'09:00';
-  document.getElementById('ag-type').value=a.type||'B2C';
-  // Link veld
-  document.getElementById('ag-link-id').value=a.linkId||'';
-  document.getElementById('ag-link-label').value=a.linkLabel||'';
-  document.getElementById('ag-link-search').value=a.linkLabel||a.link||'';
-  if(a.linkId&&a.linkLabel){agLinkChipShow(a.linkLabel,a.linkType||'');}else{agLinkChipHide();}
-  document.getElementById('ag-notitie').value=a.notitie||'';
   document.getElementById('ag-del-btn').style.display='inline-flex';
-  const sel=document.getElementById('ag-resp');
-  sel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option value="${r}"${r===a.resp?' selected':''}>${r}</option>`).join('');
-  sel.value=a.resp||'';
+
+  // Toon in de juiste stap op basis van type
+  if(a.type==='Installatie'||a.type==='Keuring'){
+    agWizSub=a.type==='Installatie'?'installatie':'keuring';
+    const inst=a.linkId?installaties.find(x=>'inst-'+x.id===a.linkId):null;
+    document.getElementById('ag-ticket-search').value=a.linkLabel||'';
+    document.getElementById('ag-ticket-id').value=a.linkId||'';
+    if(inst){agWizTicketId=inst.id;const chip=document.getElementById('ag-ticket-chip');chip.style.display='flex';chip.innerHTML=`<i class="ti ti-plug" style="font-size:12px"></i> ${inst.naam||''}<button onclick="agTicketClear()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px"><i class="ti ti-x"></i></button>`;}
+    document.getElementById('ag-datum').value=a.datum||'';
+    document.getElementById('ag-uur').value=a.uur||'09:00';
+    document.getElementById('ag-notitie').value=a.notitie||'';
+    const rsel=document.getElementById('ag-resp');
+    rsel.innerHTML='<option value="">— kies —</option>'+respNames('service').map(r=>`<option value="${r}"${r===a.resp?' selected':''}>${r}</option>`).join('');
+    document.getElementById('ag-link-id').value=a.linkId||'';
+    document.getElementById('ag-link-label').value=a.linkLabel||'';
+    agWizToonStap('ag-stap-2-ticket');
+  } else if(a.type==='B2C'){
+    agWizSub='b2c';
+    document.getElementById('ag-b2c-search').value=a.linkLabel||'';
+    document.getElementById('ag-b2c-id').value=a.linkId||'';
+    if(a.linkId){agWizB2cId=parseInt(a.linkId.replace('b2c-',''));const chip=document.getElementById('ag-b2c-chip');chip.style.display='flex';chip.innerHTML=`<i class="ti ti-user" style="font-size:12px"></i> ${a.linkLabel||''}<button onclick="agB2cClear()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px"><i class="ti ti-x"></i></button>`;}
+    document.getElementById('ag-titel').value=a.titel||'';
+    document.getElementById('ag-datum2').value=a.datum||'';
+    document.getElementById('ag-uur2').value=a.uur||'09:00';
+    document.getElementById('ag-notitie2').value=a.notitie||'';
+    const rsel=document.getElementById('ag-resp2');
+    rsel.innerHTML='<option value="">— kies —</option>'+respNames('sales').map(r=>`<option value="${r}"${r===a.resp?' selected':''}>${r}</option>`).join('');
+    agWizToonStap('ag-stap-2-b2c');
+  } else if(a.type==='B2B'){
+    agWizSub='b2b';
+    document.getElementById('ag-b2b-search').value=a.linkLabel||'';
+    document.getElementById('ag-b2b-id').value=a.linkId||'';
+    if(a.linkId){agWizB2bId=a.linkId;const chip=document.getElementById('ag-b2b-chip');chip.style.display='flex';chip.innerHTML=`<i class="ti ti-briefcase" style="font-size:12px"></i> ${a.linkLabel||''}<button onclick="agB2bClear()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px"><i class="ti ti-x"></i></button>`;}
+    document.getElementById('ag-titel3').value=a.titel||'';
+    document.getElementById('ag-datum3').value=a.datum||'';
+    document.getElementById('ag-uur3').value=a.uur||'09:00';
+    document.getElementById('ag-notitie3').value=a.notitie||'';
+    const rsel=document.getElementById('ag-resp3');
+    rsel.innerHTML='<option value="">— kies —</option>'+respNames('sales').map(r=>`<option value="${r}"${r===a.resp?' selected':''}>${r}</option>`).join('');
+    agWizToonStap('ag-stap-2-b2b');
+  } else {
+    agWizSub='andere';
+    document.getElementById('ag-titel4').value=a.titel||'';
+    document.getElementById('ag-datum4').value=a.datum||'';
+    document.getElementById('ag-uur4').value=a.uur||'09:00';
+    document.getElementById('ag-notitie4').value=a.notitie||'';
+    const rsel=document.getElementById('ag-resp4');
+    rsel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option value="${r}"${r===a.resp?' selected':''}>${r}</option>`).join('');
+    agWizToonStap('ag-stap-2-andere');
+  }
   document.getElementById('ag-nieuw-overlay').classList.add('open');
 }
 
@@ -3811,129 +4481,125 @@ function agCloseNieuw(){
 }
 
 function agSave(){
-  const titel=document.getElementById('ag-titel').value.trim();
-  const datum=document.getElementById('ag-datum').value;
-  if(!titel||!datum){showToast('Titel en datum zijn verplicht.');return;}
-  const linkId=document.getElementById('ag-link-id').value.trim();
-  const linkLabel=document.getElementById('ag-link-label').value.trim();
-  const linkType=linkId.startsWith('b2c-')?'b2c':linkId.startsWith('b2b-')?'b2b':'';
-  // Auto-fill resp from linked lead or project
-  let autoResp = document.getElementById('ag-resp').value;
-  if(linkId){
-    if(linkType==='b2c'){
-      const leadId=parseInt(linkId.replace('b2c-',''));
-      const lead=b2cLeads.find(x=>x.id===leadId);
-      if(lead&&lead.resp) autoResp=lead.resp;
-    } else if(linkType==='b2b'){
-      const projId=linkId.replace('b2b-','');
-      const proj=projects.find(p=>p.id===projId||p._rowid===projId||(p.id||p._rowid||p.naam)==='projId');
-      if(!proj){
-        // fallback: match by label
-        const matchProj=projects.find(p=>p.naam===linkLabel);
-        if(matchProj&&matchProj.resp) autoResp=matchProj.resp;
-      } else if(proj.resp) autoResp=proj.resp;
+  const userNaam=currentUser?.user_metadata?.naam||currentUser?.email||'';
+  const now=new Date();
+  const tijdstip=now.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});
+  let a=null;
+
+  if(agWizSub==='installatie'||agWizSub==='keuring'){
+    // Ticket-afspraak
+    const ticketId=document.getElementById('ag-ticket-id').value;
+    if(!ticketId){showToast('Koppel eerst een installatieticket.');return;}
+    const datum=document.getElementById('ag-datum').value;
+    if(!datum){showToast('Datum is verplicht.');return;}
+    const inst=installaties.find(x=>x.id===agWizTicketId);
+    const prefix=agWizSub==='installatie'?'Installatie':'Keuring';
+    const naam=inst?(prefix+' '+inst.naam):(prefix);
+    a={
+      id:agEditId||agNextId++,
+      titel:naam, datum,
+      uur:document.getElementById('ag-uur').value,
+      type:agWizSub==='installatie'?'Installatie':'Keuring',
+      resp:document.getElementById('ag-resp').value,
+      linkId:ticketId, linkLabel:inst?inst.naam:'',linkType:'installatie',
+      notitie:document.getElementById('ag-notitie').value.trim()
+    };
+    // Log op ticket
+    if(inst){
+      inst.acties=inst.acties||[];
+      inst.acties.push({datum:today(),tijdstip,gebruiker:userNaam,tekst:`📅 ${prefix} ingepland op ${datum}${a.uur?' om '+a.uur:''}`});
+      sbSaveInstallatie(inst);
     }
-  }
-  const a={
-    id:agEditId||agNextId++,
-    titel,datum,
-    uur:document.getElementById('ag-uur').value,
-    type:document.getElementById('ag-type').value,
-    resp:autoResp,
-    link:linkLabel||document.getElementById('ag-link-search').value.trim(),
-    linkId,linkLabel,linkType,
-    notitie:document.getElementById('ag-notitie').value.trim()
-  };
-  // Log koppeling naar B2C lead als aanwezig
-  if(linkType==='b2c'&&linkId){
-    const leadId=parseInt(linkId.replace('b2c-',''));
-    const lead=b2cLeads.find(x=>x.id===leadId);
+
+  } else if(agWizSub==='b2c'){
+    const b2cId=document.getElementById('ag-b2c-id').value;
+    if(!b2cId){showToast('Koppel eerst een B2C lead.');return;}
+    const titel=document.getElementById('ag-titel').value.trim();
+    const datum=document.getElementById('ag-datum2').value;
+    if(!titel||!datum){showToast('Titel en datum zijn verplicht.');return;}
+    const lead=b2cLeads.find(x=>x.id===agWizB2cId);
+    a={
+      id:agEditId||agNextId++,
+      titel, datum,
+      uur:document.getElementById('ag-uur2').value,
+      type:'B2C',
+      resp:document.getElementById('ag-resp2').value,
+      linkId:b2cId, linkLabel:lead?b2cNaam(lead):'',linkType:'b2c',
+      notitie:document.getElementById('ag-notitie2').value.trim()
+    };
+    // Log op lead
     if(lead){
       lead.acties=lead.acties||[];
-      lead.acties.push({datum:datum||today(),tekst:`Agenda-afspraak gekoppeld: "${titel}"${a.uur?' om '+a.uur:''}`});
+      lead.acties.push({datum:today(),tijdstip,gebruiker:userNaam,tekst:`📅 Afspraak ingepland: "${titel}" op ${datum}${a.uur?' om '+a.uur:''}${a.notitie?' — '+a.notitie:''}`});
+      sbSaveB2cLead(lead);
     }
+
+  } else if(agWizSub==='b2b'){
+    const b2bId=document.getElementById('ag-b2b-id').value;
+    if(!b2bId){showToast('Koppel eerst een project of prospect.');return;}
+    const titel=document.getElementById('ag-titel3').value.trim();
+    const datum=document.getElementById('ag-datum3').value;
+    if(!titel||!datum){showToast('Titel en datum zijn verplicht.');return;}
+    let logObj=null;
+    if(b2bId.startsWith('b2b-')){
+      const pid=b2bId.replace('b2b-','');
+      logObj=projects.find(p=>p.id===pid||p._rowid===pid);
+    } else if(b2bId.startsWith('prosp-')){
+      const pid=parseInt(b2bId.replace('prosp-',''));
+      logObj=prospects.find(p=>p.id===pid);
+    }
+    a={
+      id:agEditId||agNextId++,
+      titel, datum,
+      uur:document.getElementById('ag-uur3').value,
+      type:'B2B',
+      resp:document.getElementById('ag-resp3').value,
+      linkId:b2bId, linkLabel:logObj?logObj.naam:'',linkType:agWizB2bType==='Prospect'?'prospect':'b2b',
+      notitie:document.getElementById('ag-notitie3').value.trim()
+    };
+    // Log op project/prospect
+    if(logObj){
+      logObj.acties=logObj.acties||[];
+      logObj.acties.push({datum:today(),tijdstip,gebruiker:userNaam,tekst:`📅 Afspraak ingepland: "${titel}" op ${datum}${a.uur?' om '+a.uur:''}${a.notitie?' — '+a.notitie:''}`});
+      if(agWizB2bType==='Prospect')sbSaveProspect(logObj);
+      else sbSaveProject(logObj);
+    }
+
+  } else {
+    // Andere (service of sales)
+    const titel=document.getElementById('ag-titel4').value.trim();
+    const datum=document.getElementById('ag-datum4').value;
+    if(!titel||!datum){showToast('Titel en datum zijn verplicht.');return;}
+    a={
+      id:agEditId||agNextId++,
+      titel, datum,
+      uur:document.getElementById('ag-uur4').value,
+      type:agWizHoofd==='service'?'Andere':'Andere',
+      resp:document.getElementById('ag-resp4').value,
+      linkId:'',linkLabel:'',linkType:'andere',
+      notitie:document.getElementById('ag-notitie4').value.trim()
+    };
   }
+
+  if(!a)return;
   if(agEditId){const i=agAfspraken.findIndex(x=>x.id===agEditId);if(i>-1)agAfspraken[i]=a;}
   else agAfspraken.push(a);
   agCloseNieuw();
   agRenderCalendar();
   agRenderAankomende();
-  showToast(agEditId?'Afspraak bijgewerkt.':'Afspraak toegevoegd.');
-  // Sla op in Supabase/lokaal
+  showToast(agEditId?'Afspraak bijgewerkt ✓':'Afspraak toegevoegd ✓');
   try{localStorage.setItem('blitz_ag',JSON.stringify(agAfspraken));}catch{}
 }
 
-function agLinkSearch(q){
-  const dd=document.getElementById('ag-link-dropdown');
-  if(!q||q.length<1){dd.style.display='none';return;}
-  const ql=q.toLowerCase();
-  const results=[];
-  // B2C leads
-  b2cLeads.filter(l=>l.status!=='Verloren').forEach(l=>{
-    const naam=b2cNaam(l);
-    if(naam.toLowerCase().includes(ql)||(l.adres||'').toLowerCase().includes(ql)){
-      results.push({id:'b2c-'+l.id,label:naam,sub:l.adres||l.tel||'',type:'B2C Lead',color:'#00805e',bg:'rgba(0,223,163,.12)'});
-    }
-  });
-  // B2B projecten
-  projects.forEach(p=>{
-    const naam=p.naam||'';
-    const klant=p.klant||'';
-    if(naam.toLowerCase().includes(ql)||klant.toLowerCase().includes(ql)){
-      results.push({id:'b2b-'+(p.id||p._rowid||naam),label:naam,sub:klant,type:'B2B Project',color:'#3c3489',bg:'rgba(83,74,183,.12)'});
-    }
-  });
-  if(!results.length){
-    dd.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--tx3)">Geen resultaten gevonden</div>';
-    dd.style.display='block';return;
-  }
-  const sliced=results.slice(0,8);
-  dd.innerHTML=sliced.map((r,i)=>`
-    <div data-link-idx="${i}"
-      style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;transition:background .1s"
-      onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
-      <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:${r.bg};color:${r.color};white-space:nowrap">${r.type}</span>
-      <div style="min-width:0">
-        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.label}</div>
-        <div style="font-size:11px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.sub}</div>
-      </div>
-    </div>`).join('');
-  dd._results=sliced;
-  dd.querySelectorAll('[data-link-idx]').forEach(el=>{
-    el.addEventListener('click',function(){
-      const r=dd._results[parseInt(this.dataset.linkIdx)];
-      if(r)agLinkSelect(r.id,r.label,r.type);
-    });
-  });
-  dd.style.display='block';
-}
-function agLinkSelect(id,label,type){
-  document.getElementById('ag-link-id').value=id;
-  document.getElementById('ag-link-label').value=label;
-  document.getElementById('ag-link-search').value=label;
-  document.getElementById('ag-link-dropdown').style.display='none';
-  agLinkChipShow(label,type);
-}
-function agLinkChipShow(label,type){
-  const chip=document.getElementById('ag-link-chip');
-  chip.style.display='flex';
-  chip.innerHTML=`<i class="ti ti-link" style="font-size:12px"></i> ${label}<span style="font-size:10px;opacity:.7;margin-left:4px">${type}</span><button onclick="agLinkClear()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;padding:0;font-size:13px;line-height:1" title="Ontkoppelen"><i class="ti ti-x"></i></button>`;
-}
-function agLinkChipHide(){
-  const chip=document.getElementById('ag-link-chip');
-  if(chip){chip.style.display='none';chip.innerHTML='';}
-}
-function agLinkClear(){
-  document.getElementById('ag-link-id').value='';
-  document.getElementById('ag-link-label').value='';
-  document.getElementById('ag-link-search').value='';
-  agLinkChipHide();
-}
-// Sluit dropdown als buiten geklikt
+// Sluit dropdowns als buiten geklikt
 document.addEventListener('click',function(e){
-  const dd=document.getElementById('ag-link-dropdown');
-  if(dd&&!dd.contains(e.target)&&e.target.id!=='ag-link-search'){dd.style.display='none';}
+  ['ag-ticket-dropdown','ag-b2c-dropdown','ag-b2b-dropdown'].forEach(id=>{
+    const dd=document.getElementById(id);
+    if(dd&&!dd.contains(e.target)){dd.style.display='none';}
+  });
 });
+function agLinkChipHide(){} // legacy compat
+function agLinkClear(){} // legacy compat
 
 function agDelete(){
   if(!agEditId)return;
@@ -3985,13 +4651,34 @@ function instLoadFromStorage(){
 function instSaveToStorage(){
   try{localStorage.setItem('blitz_installaties',JSON.stringify(installaties));}catch{}
 }
+async function sbSaveInstallatie(inst){
+  if(!sbUrl){instSaveToStorage();return;}
+  const data={...inst};
+  delete data._sbid;
+  data.updatedAt=new Date().toISOString();
+  try{
+    if(inst._sbid){
+      await sbFetch('installaties?id=eq.'+inst._sbid,{method:'PATCH',headers:{'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({data})});
+    } else {
+      const r=await sbFetch('installaties',{method:'POST',headers:{'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify({data})});
+      if(r&&r[0]){inst._sbid=r[0].id;}
+    }
+  }catch(e){console.warn('sbSaveInstallatie:',e.message);}
+  instSaveToStorage();
+}
+async function sbDeleteInstallatie(id){
+  const inst=installaties.find(x=>x.id===id)||{};
+  const sbid=inst._sbid||id;
+  if(sbUrl){try{await sbFetch('installaties?id=eq.'+sbid,{method:'DELETE'});}catch(e){console.warn('sbDeleteInstallatie:',e.message);}}
+  instSaveToStorage();
+}
 
 // ── INSTALLATIES KANBAN RENDER ──
 function instRenderBoard(){
   // Resp filter pills
   const pillsEl=document.getElementById('inst-pills-resp');
   if(pillsEl){
-    const namen=['alle',...new Set([...installaties.map(i=>i.resp),...respNames()].filter(Boolean))];
+    const namen=['alle',...new Set([...installaties.map(i=>i.resp),...respNames('service')].filter(Boolean))];
     pillsEl.innerHTML=namen.map(r=>`<button class="pill${r==='alle'?' all':''}${instRespFilter===r?' active':''}" onclick="instSetRespFilter('${r}')">${r==='alle'?'<i class="ti ti-users" style="font-size:12px;margin-right:3px"></i>Iedereen':r}</button>`).join('');
   }
   // Stats
@@ -4010,8 +4697,15 @@ function instRenderBoard(){
   // Kanban board
   const board=document.getElementById('inst-kanban-board');if(!board)return;
   const filtered=instRespFilter==='alle'?installaties:installaties.filter(i=>i.resp===instRespFilter);
+  // Compleet: toon enkel de laatste 2 dagen in kanban, daarna enkel in Afgerond tab
+  const t=today();
+  const filtered2=filtered.filter(i=>{
+    if(i.fase!==INST_FASE_AFGEROND)return true;
+    if(!i.afgerondOp)return true;
+    return Math.round((new Date(t)-new Date(i.afgerondOp))/86400000)<=2;
+  });
   board.innerHTML=INST_FASES.map(fase=>{
-    const cards=filtered.filter(i=>i.fase===fase);
+    const cards=filtered2.filter(i=>i.fase===fase);
     const cardHtml=cards.length?cards.map(i=>instCardHtml(i)).join('')
       :`<div class="kol-empty"><i class="ti ti-inbox" style="font-size:20px;display:block;margin-bottom:4px"></i>Leeg</div>`;
     const faseKleur=instFaseKleur(fase);
@@ -4030,7 +4724,7 @@ function instRenderBoard(){
 }
 
 function instFaseKleur(fase){
-  return{Nieuw:'#00DFA3','Info verkrijgen':'#f59e0b','Screening ok':'#3b82f6','Installatie gepland':'#e85d04','Installatie & Keuring gepland':'#7b2d8b'}[fase]||'#888';
+  return{Nieuw:'#00DFA3','Info verkrijgen':'#f59e0b','Screening ok':'#3b82f6','Installatie gepland':'#e85d04','Installatie & Keuring gepland':'#7b2d8b','Installatie & Keuring compleet':'#639922'}[fase]||'#888';
 }
 
 function instCardHtml(i){
@@ -4076,10 +4770,12 @@ function instDrop(e,fase){
   if(inst&&inst.fase!==fase){
     inst.fase=fase;
     inst.acties=inst.acties||[];
-    inst.acties.push({datum:today(),tekst:'Fase gewijzigd naar: '+fase});
-    instSaveToStorage();
+    inst.acties.push(logEntry('Fase gewijzigd naar: '+fase));
+    if(fase===INST_FASE_AFGEROND)inst.afgerondOp=today();
+    sbSaveInstallatie(inst);
     instRenderBoard();
     siOpvRender();
+    if(fase===INST_FASE_AFGEROND)showToast('✓ Installatie afgerond en opgeslagen.');
   }
   instDragId=null;
 }
@@ -4153,7 +4849,7 @@ function instDossierOpen(id){
 
   // Verantwoordelijke select
   const rsel=document.getElementById('id-resp');
-  rsel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option${r===i.resp?' selected':''}>${r}</option>`).join('');
+  rsel.innerHTML='<option value="">— kies —</option>'+respNames('service').map(r=>`<option${r===i.resp?' selected':''}>${r}</option>`).join('');
 
   // Log
   instLogRender(i.acties||[]);
@@ -4188,7 +4884,7 @@ function instOpenNieuw(){
   document.getElementById('id-uur-keur').value='14:00';
   document.getElementById('id-link-dd').style.display='none';
   const rsel=document.getElementById('id-resp');
-  rsel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option>${r}</option>`).join('');
+  rsel.innerHTML='<option value="">— kies —</option>'+respNames('service').map(r=>`<option>${r}</option>`).join('');
   instLogRender([]);
   instScRender({});
   instDocRender();
@@ -4211,8 +4907,8 @@ function instDossierFaseChange(fase){
   if(!i)return;
   i.fase=fase;
   i.acties=i.acties||[];
-  i.acties.push({datum:today(),tekst:'Fase gewijzigd naar: '+fase});
-  instSaveToStorage();
+  i.acties.push(logEntry('Fase gewijzigd naar: '+fase));
+  sbSaveInstallatie(i);
   instRenderBoard();
   siOpvRender();
 }
@@ -4244,8 +4940,22 @@ function instDossierSave(){
     docs: [...instCurrentDocs],
     acties: existing?existing.acties||[]:[]
   };
-  if(existing){Object.assign(existing,data);}
-  else{installaties.push(data);}
+  // Auto-log wijzigingen
+  if(existing){
+    const velden=[
+      ['voornaam','Voornaam'],['achternaam','Achternaam'],['project','Project'],
+      ['adres','Adres'],['tel','Telefoon'],['email','E-mail'],['resp','Verantwoordelijke'],
+      ['fase','Fase'],['datumInst','Installatiedatum'],['datumKeur','Keuringsdatum']
+    ];
+    const changed=velden.filter(([k])=>String(existing[k]||'')!==String(data[k]||'')).map(([,l])=>l);
+    if(changed.length){data.acties=data.acties||[];data.acties.push(logEntry('Bewerkt: '+changed.join(', ')));}
+    if(existing._sbid)data._sbid=existing._sbid;
+    Object.assign(existing,data);
+  } else {
+    data.acties=data.acties||[];
+    data.acties.push(logEntry('Dossier aangemaakt'));
+    installaties.push(data);
+  }
 
   // Agenda: installatie
   if(data.datumInst){
@@ -4260,7 +4970,8 @@ function instDossierSave(){
     agAfspraken.push({id:agId,titel:'Keuring: '+data.naam,datum:data.datumKeur,uur:data.uurKeur,type:'Keuring',resp:data.resp,notitie:data.adres,linkId:'keur-'+data.id,linkLabel:data.naam,linkType:'keuring'});
   }
   try{localStorage.setItem('blitz_ag',JSON.stringify(agAfspraken));}catch{}
-  instSaveToStorage();
+  sbSaveInstallatie(data);
+  instLogRender(data.acties||[]);
   instDossierClose();
   instRenderBoard();
   siOpvRender();
@@ -4269,9 +4980,15 @@ function instDossierSave(){
 
 function instDossierDelete(){
   if(!instDossierOpenId||!confirm('Installatie-dossier verwijderen?'))return;
+  const inst=installaties.find(x=>x.id===instDossierOpenId);
+  const sbid=inst?inst._sbid||null:null;
   installaties=installaties.filter(x=>x.id!==instDossierOpenId);
   agAfspraken=agAfspraken.filter(a=>a.id!=='inst-'+instDossierOpenId&&a.id!=='keur-'+instDossierOpenId);
   try{localStorage.setItem('blitz_ag',JSON.stringify(agAfspraken));}catch{}
+  // Verwijder via Supabase row id (_sbid), niet interne id
+  if(sbUrl&&sbid){
+    sbFetch('installaties?id=eq.'+sbid,{method:'DELETE'}).catch(e=>console.warn('sbDeleteInstallatie:',e.message));
+  }
   instSaveToStorage();
   instDossierClose();
   instRenderBoard();
@@ -4284,7 +5001,7 @@ function instLogRender(acties){
   const el=document.getElementById('id-log-list');if(!el)return;
   if(!acties.length){el.innerHTML='<div style="font-size:12px;color:var(--tx3)">Nog geen activiteiten.</div>';return;}
   el.innerHTML=[...acties].reverse().map((a,i)=>`<div class="tl-item">
-    <div class="tl-datum">${a.datum||''}</div>
+    <div class="tl-datum">${a.datum||''}${a.tijdstip?' '+a.tijdstip:''}<br>${a.gebruiker?'<span style="font-size:9px;color:var(--tx3)">'+a.gebruiker+'</span>':''}</div>
     <div class="tl-tekst">${a.tekst}</div>
     <button class="tl-del" onclick="instLogDel(${acties.length-1-i})"><i class="ti ti-x"></i></button>
   </div>`).join('');
@@ -4293,7 +5010,7 @@ function instLogAdd(){
   const txt=document.getElementById('id-log-tekst').value.trim();
   if(!txt)return;
   const i=installaties.find(x=>x.id===instDossierOpenId);
-  if(i){i.acties=i.acties||[];i.acties.push({datum:today(),tekst:txt});instLogRender(i.acties);instSaveToStorage();}
+  if(i){i.acties=i.acties||[];i.acties.push(logEntry(txt));instLogRender(i.acties);sbSaveInstallatie(i);}
   else{
     // Temp log for new entries — will be saved on instDossierSave
   }
@@ -4305,7 +5022,7 @@ function instLogDel(idx){
   i.acties=i.acties||[];
   i.acties.splice(idx,1);
   instLogRender(i.acties);
-  instSaveToStorage();
+  sbSaveInstallatie(i);
 }
 
 // ── SCREENING ──
@@ -4493,6 +5210,74 @@ function instLinkSearch(q){
 }
 
 // ── DOORSTUREN NAAR INSTALLATIES ──
+function b2cSluitGewonnenKeuze(){
+  document.getElementById('b2c-gewonnen-keuze-overlay').classList.remove('open');
+  window._b2bGewonnenProject=null;
+}
+
+function b2bTriggerGewonnenFlow(project){
+  if(!project)return;
+  const partner=project.installatiepartner;
+  if(partner){
+    // Partner al gekend → stil opslaan, geen popup nodig
+    // Project blijft gewoon in gewonnen staan en gaat na 7 dagen naar verkocht
+    return;
+  }
+  // Geen partner → keuze eigen of partner
+  window._b2bGewonnenProject=project;
+  document.getElementById('b2c-gewonnen-keuze-naam').textContent=project.naam||project.klant||'';
+  document.getElementById('b2c-gewonnen-keuze-overlay').classList.add('open');
+}
+
+// B2B modal installatiepartner zoekfunctie
+function mPartnerZoek(q){
+  const dd=document.getElementById('m-partner-dd');
+  if(!q||q.length<1){dd.style.display='none';return;}
+  const ql=q.toLowerCase();
+  const crmPartners=klanten.filter(k=>k.isInstallatiepartner&&((k.naam||'').toLowerCase().includes(ql)));
+  const allePartners=klanten.filter(k=>!k.isInstallatiepartner&&((k.naam||'').toLowerCase().includes(ql))).slice(0,3);
+  const eerder=[...new Set(b2cLeads.filter(l=>l.installatiepartner).map(l=>l.installatiepartner))].filter(p=>p.toLowerCase().includes(ql));
+  const results=[];
+  crmPartners.forEach(k=>results.push({label:k.naam,sub:'✓ Installatiepartner',icon:'ti-tools',color:'#e85d04'}));
+  allePartners.forEach(k=>results.push({label:k.naam,sub:k.contact||'CRM klant',icon:'ti-building',color:'var(--tx2)'}));
+  eerder.filter(p=>!results.find(r=>r.label===p)).forEach(p=>results.push({label:p,sub:'Eerder gebruikt',icon:'ti-history',color:'var(--tx3)'}));
+  if(!results.length){dd.style.display='none';return;}
+  dd.innerHTML=results.map((r,i)=>`<div data-mpi="${i}" style="padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+    <i class="ti ${r.icon}" style="color:${r.color};font-size:12px;flex-shrink:0"></i>
+    <div><div style="font-size:12px;font-weight:600">${r.label}</div><div style="font-size:10px;color:var(--tx3)">${r.sub}</div></div>
+  </div>`).join('');
+  dd._results=results;
+  dd.querySelectorAll('[data-mpi]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const r=dd._results[parseInt(el.dataset.mpi)];
+      mPartnerSelect(r.label);
+    });
+  });
+  dd.style.display='block';
+}
+function mPartnerSelect(naam){
+  document.getElementById('m-partner-search').value=naam;
+  document.getElementById('m-partner-naam').value=naam;
+  document.getElementById('m-partner-dd').style.display='none';
+  const chip=document.getElementById('m-partner-chip');
+  chip.style.display='flex';
+  chip.innerHTML=`<i class="ti ti-tools" style="font-size:11px"></i> ${naam}<button onclick="mPartnerClear()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;font-size:13px"><i class="ti ti-x"></i></button>`;
+}
+function mPartnerClear(){
+  document.getElementById('m-partner-search').value='';
+  document.getElementById('m-partner-naam').value='';
+  document.getElementById('m-partner-chip').style.display='none';
+}
+
+function b2bDoorstuurInstallatie(){
+  let p=null;
+  if(editingIdx!==null&&editingIdx>=0)p=projects[editingIdx];
+  else if(editingId)p=projects.find(x=>x.id===editingId||x._rowid===editingId);
+  if(!p){showToast('Sla het project eerst op voor je doorstuurt.');return;}
+  closeModal();
+  doorstuurNaarInstallatie('b2b', p.id||p._rowid);
+}
+
 function doorstuurNaarInstallatie(bron, id){
   let voornaam='',achternaam='',adres='',tel='',email='',resp='',linkId='',linkLabel='',project='';
   let leadObj=null, projObj=null;
@@ -4510,6 +5295,17 @@ function doorstuurNaarInstallatie(bron, id){
     linkId='b2b-'+(p.id||p._rowid);linkLabel=p.naam||'';
   }
 
+  // Check of er al een installatieticket bestaat voor deze lead/project
+  const bestaand=installaties.find(i=>i.linkId===linkId);
+  if(bestaand){
+    showToast(`Installatieticket bestaat al voor "${linkLabel}"`);
+    if(confirm(`Er is al een installatieticket voor "${linkLabel}".\n\nWil je het bestaande ticket openen?`)){
+      showTab('installaties');
+      setTimeout(()=>instDossierOpen(bestaand.id),200);
+    }
+    return;
+  }
+
   // Sluit eventueel open dossier/modal
   document.getElementById('b2c-detail-overlay').classList.remove('open');
   document.getElementById('modal-overlay').classList.remove('open');
@@ -4520,12 +5316,27 @@ function doorstuurNaarInstallatie(bron, id){
     if(!leadObj.gewonnenOp)leadObj.gewonnenOp=today();
     leadObj.installatieType='eigen';
     leadObj.acties=leadObj.acties||[];
-    leadObj.acties.push({datum:today(),tekst:'✓ Gewonnen — doorgestuurd naar installatiedashboard.'});
+    leadObj.acties.push(logEntry('✓ Gewonnen — doorgestuurd naar installatiedashboard.'));
     sbSaveB2cLead(leadObj);
     b2cRenderGewonnen();
   }
 
-  // Maak installatie-dossier aan en sla DIRECT op
+  // Zet B2B project op Gewonnen (pct=100) als nog niet verkocht
+  if(projObj && projObj.pct !== 100){
+    const projIdx=projects.findIndex(x=>x===projObj);
+    projObj.pct=100;
+    projObj.status=String(STATUSES.length-1);
+    if(!projObj.sold_at)projObj.sold_at=today();
+    projObj.tijdlijn=projObj.tijdlijn||[];
+    projObj.tijdlijn.push({datum:today(),tekst:'Gewonnen — doorgestuurd naar installatiedashboard.'});
+    if(projIdx>=0)projects[projIdx]=projObj;
+    if(prevSoldSet)prevSoldSet.add(projObj.naam||'');
+    lsSave();
+    sbSaveProject(projObj).catch(()=>{});
+    renderAll();
+  }
+
+  // Maak installatie-dossier aan
   const nieuwId=instNextId++;
   const nieuwInst={
     id: nieuwId,
@@ -4542,15 +5353,147 @@ function doorstuurNaarInstallatie(bron, id){
     aangemaakt:today()
   };
   installaties.push(nieuwInst);
-  instSaveToStorage();
+  sbSaveInstallatie(nieuwInst);
+  instRenderBoard();
+  showToast('✓ Installatie aangemaakt — dossier staat klaar voor service.');
+}
 
-  // Navigeer direct naar installatiedashboard en open het dossier
-  showTab('installaties');
-  setTimeout(()=>{
-    instRenderBoard();
-    instDossierOpen(nieuwId);
-    showToast('Installatie aangemaakt'+(leadObj&&leadObj.status==='Gewonnen'?' — lead op Gewonnen gezet ✓':' ✓'));
-  },100);
+// ── AFGEROND ──────────────────────────────────────────
+let siAfgerondRespFilter='alle';
+function siAfgerondRender(){
+  const pillsEl=document.getElementById('si-afgerond-pills-resp');
+  if(pillsEl){
+    const namen=['alle',...new Set(installaties.filter(i=>i.fase===INST_FASE_AFGEROND).map(i=>i.resp).filter(Boolean))];
+    pillsEl.innerHTML=namen.map(r=>`<button class="pill${siAfgerondRespFilter===r?' active':''}${r==='alle'?' all':''}" onclick="siAfgerondSetResp('${r}')">${r==='alle'?'Iedereen':r}</button>`).join('');
+  }
+  const el=document.getElementById('si-afgerond-list');if(!el)return;
+  const list=installaties.filter(i=>i.fase===INST_FASE_AFGEROND&&(siAfgerondRespFilter==='alle'||i.resp===siAfgerondRespFilter))
+    .sort((a,b)=>(b.afgerondOp||'').localeCompare(a.afgerondOp||''));
+  if(!list.length){
+    el.innerHTML='<div style="text-align:center;padding:3rem;color:var(--tx3)"><i class="ti ti-circle-check" style="font-size:40px;display:block;margin-bottom:10px"></i>Nog geen afgeronde installaties.</div>';
+    return;
+  }
+  el.innerHTML=list.map(i=>{
+    const naam=(i.voornaam||i.naam||'')+(i.achternaam?' '+i.achternaam:'');
+    return`<div onclick="instDossierOpen(${i.id})" style="display:grid;grid-template-columns:1.8fr 1.2fr 1fr 1fr 1fr 100px;gap:10px;padding:10px 14px;background:var(--bg);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px;cursor:pointer;align-items:center;border-left:3px solid #639922"
+      onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div><div style="font-size:13px;font-weight:700">${naam||'—'}</div><div style="font-size:11px;color:var(--tx3)">${i.project||i.adres||''}</div></div>
+      <div><span style="font-size:11px;font-weight:600;background:rgba(99,153,34,.12);color:#639922;padding:2px 8px;border-radius:10px">${i.afgerondOp||'—'}</span></div>
+      <div style="font-size:12px">${i.datumInst||'—'}${i.uurInst?' '+i.uurInst:''}</div>
+      <div style="font-size:12px">${i.datumKeur||'—'}${i.uurKeur?' '+i.uurKeur:''}</div>
+      <div style="font-size:12px;color:var(--tx2)">${i.resp||'—'}</div>
+      <div style="display:flex;justify-content:flex-end"><button class="btn sm" onclick="event.stopPropagation();instDossierOpen(${i.id})"><i class="ti ti-eye"></i></button></div>
+    </div>`;
+  }).join('');
+}
+function siAfgerondSetResp(r){siAfgerondRespFilter=r;siAfgerondRender();}
+
+// ── SERVICE AGENDA ─────────────────────────────────────
+let siAgYear=new Date().getFullYear();
+let siAgMonth=new Date().getMonth();
+let siAgRespFilter='alle';
+let siAgSelDag=null;
+
+function siAgGetEvents(){
+  const events=[];
+  installaties.filter(i=>siAgRespFilter==='alle'||i.resp===siAgRespFilter).forEach(i=>{
+    const naam=(i.voornaam||i.naam||'')+(i.achternaam?' '+i.achternaam:'');
+    if(i.datumInst)events.push({datum:i.datumInst,uur:i.uurInst||'',label:naam,sub:i.project||i.adres||'',type:'inst',kleur:'#e85d04',id:i.id,resp:i.resp||''});
+    if(i.datumKeur)events.push({datum:i.datumKeur,uur:i.uurKeur||'',label:naam,sub:i.project||i.adres||'',type:'keur',kleur:'#7b2d8b',id:i.id,resp:i.resp||''});
+  });
+  return events;
+}
+
+function siAgRender(){
+  const pillsEl=document.getElementById('si-ag-pills-resp');
+  if(pillsEl){
+    const namen=['alle',...new Set(installaties.map(i=>i.resp).filter(Boolean))];
+    pillsEl.innerHTML=namen.map(r=>`<button class="pill${siAgRespFilter===r?' active':''}${r==='alle'?' all':''}" onclick="siAgSetResp('${r}')">${r==='alle'?'Iedereen':r}</button>`).join('');
+  }
+  const MAANDEN=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  const lbl=document.getElementById('si-ag-maand-label');
+  if(lbl)lbl.textContent=MAANDEN[siAgMonth]+' '+siAgYear;
+  siAgRenderCal();
+  siAgRenderAankomende();
+}
+function siAgSetResp(r){siAgRespFilter=r;siAgRender();}
+function siAgCalPrev(){siAgMonth--;if(siAgMonth<0){siAgMonth=11;siAgYear--;}siAgRender();}
+function siAgCalNext(){siAgMonth++;if(siAgMonth>11){siAgMonth=0;siAgYear++;}siAgRender();}
+
+function siAgRenderCal(){
+  const grid=document.getElementById('si-ag-cal-grid');if(!grid)return;
+  const events=siAgGetEvents();
+  const evMap={};
+  events.forEach(ev=>{(evMap[ev.datum]=evMap[ev.datum]||[]).push(ev);});
+  const t=today();
+  const startDow=(new Date(siAgYear,siAgMonth,1).getDay()+6)%7;
+  const dim=new Date(siAgYear,siAgMonth+1,0).getDate();
+  let html='';
+  for(let i=0;i<startDow;i++)html+=`<div style="aspect-ratio:1;border-radius:6px"></div>`;
+  for(let d=1;d<=dim;d++){
+    const ds=`${siAgYear}-${String(siAgMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=ds===t;const isSel=ds===siAgSelDag;
+    const evs=evMap[ds]||[];
+    const dots=evs.map(ev=>`<div style="width:5px;height:5px;border-radius:50%;background:${ev.kleur};flex-shrink:0"></div>`).join('');
+    html+=`<div data-siagd="${ds}" style="aspect-ratio:1;border-radius:6px;background:${isSel?'var(--green)':isToday?'rgba(0,223,163,.15)':'var(--bg2)'};cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1px solid ${isSel?'var(--green)':isToday?'var(--green)':'var(--bd)'};transition:border-color .1s"
+      onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='${isSel?'var(--green)':isToday?'var(--green)':'var(--bd)'}'"}>
+      <span style="font-size:11px;font-weight:${isToday||isSel?'800':'500'};color:${isSel?'#fff':'var(--tx)'}">${d}</span>
+      ${evs.length?`<div style="display:flex;gap:2px;flex-wrap:wrap;justify-content:center">${dots}</div>`:''}
+    </div>`;
+  }
+  grid.innerHTML=html;
+  grid.querySelectorAll('[data-siagd]').forEach(el=>{
+    el.addEventListener('click',()=>{siAgSelDag=el.dataset.siagd;siAgRenderCal();siAgRenderDag(el.dataset.siagd);});
+  });
+}
+
+function siAgRenderDag(ds){
+  const titelEl=document.getElementById('si-ag-dag-titel');
+  const listEl=document.getElementById('si-ag-dag-items');
+  if(!titelEl||!listEl)return;
+  const d=new Date(ds);
+  titelEl.textContent=d.toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long'});
+  const evs=siAgGetEvents().filter(ev=>ev.datum===ds).sort((a,b)=>(a.uur||'').localeCompare(b.uur||''));
+  if(!evs.length){listEl.innerHTML='<div style="font-size:12px;color:var(--tx3)">Geen afspraken op deze dag.</div>';return;}
+  listEl.innerHTML=evs.map((ev,i)=>`
+    <div data-sievi="${i}" style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer"
+      onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="width:10px;height:10px;border-radius:50%;background:${ev.kleur};flex-shrink:0;margin-top:3px"></div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700">${ev.label}</div>
+        <div style="font-size:11px;color:var(--tx3)">${ev.uur||''}${ev.resp?' · '+ev.resp:''}</div>
+        <div style="font-size:11px;color:var(--tx2)">${ev.sub}</div>
+        <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:${ev.kleur}22;color:${ev.kleur}">${ev.type==='inst'?'🔧 Installatie':'🔍 Keuring'}</span>
+      </div>
+    </div>`).join('');
+  listEl.querySelectorAll('[data-sievi]').forEach(el=>{
+    const ev=evs[parseInt(el.dataset.sievi)];
+    el.addEventListener('click',()=>instDossierOpen(ev.id));
+  });
+}
+
+function siAgRenderAankomende(){
+  const el=document.getElementById('si-ag-aankomende');if(!el)return;
+  const t=today();
+  const MK=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  const evs=siAgGetEvents().filter(ev=>ev.datum>=t).sort((a,b)=>a.datum.localeCompare(b.datum)||(a.uur||'').localeCompare(b.uur||'')).slice(0,15);
+  if(!evs.length){el.innerHTML='<div style="font-size:12px;color:var(--tx3)">Geen aankomende afspraken.</div>';return;}
+  el.innerHTML=evs.map((ev,i)=>{
+    const d=new Date(ev.datum);
+    const diff=Math.round((new Date(ev.datum)-new Date(t))/86400000);
+    const lbl=diff===0?'<span style="color:#854f0b;font-weight:700">Vandaag</span>':diff===1?'<span style="color:#854f0b;font-weight:700">Morgen</span>':`${d.getDate()} ${MK[d.getMonth()]}`;
+    return`<div data-siaievi="${i}" style="padding:7px 0;border-bottom:1px solid var(--bd);cursor:pointer" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <div style="display:flex;align-items:center;gap:5px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${ev.kleur};flex-shrink:0"></div>
+        <span style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.label}</span>
+      </div>
+      <div style="font-size:11px;color:var(--tx3);padding-left:13px">${lbl}${ev.uur?' '+ev.uur:''} · ${ev.type==='inst'?'🔧 Installatie':'🔍 Keuring'}</div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-siaievi]').forEach(el2=>{
+    const ev=evs[parseInt(el2.dataset.siaievi)];
+    el2.addEventListener('click',()=>instDossierOpen(ev.id));
+  });
 }
 
 // ── SI OPVOLGING RENDER ──
@@ -4562,7 +5505,7 @@ function siOpvRender(){
   }
   const respEl=document.getElementById('si-opv-pills-resp');
   if(respEl){
-    const namen=['alle',...new Set(installaties.map(i=>i.resp).filter(Boolean))];
+    const namen=['alle',...new Set([...installaties.map(i=>i.resp),...respNames('service')].filter(Boolean))];
     respEl.innerHTML=namen.map(r=>`<button class="pill${siOpvRespFilter===r?' active':''}${r==='alle'?' all':''}" onclick="siOpvSetResp('${r}')">${r==='alle'?'Iedereen':r}</button>`).join('');
   }
   const el=document.getElementById('si-opvolg-list');if(!el)return;
@@ -4633,6 +5576,7 @@ function agGetInstAfspraken(){
     safe('user-edit-modal',closeUserEditModal);
     safe('inst-dossier-overlay',instDossierClose);
     safe('b2c-gewonnen-keuze-overlay',b2cSluitGewonnenKeuze);
+    safe('b2c-gw-partner-overlay',b2cSluitGwPartner);
     safe('b2c-detail-overlay', function(){if(b2cOpenLeadId)b2cSaveLeadEdit();else b2cCloseDetail();});
     safe('b2c-nieuw-overlay',b2cCloseNieuw);
     safe('b2c-visit-overlay',b2cCloseVisitModal);
@@ -4692,7 +5636,6 @@ function startAppAfterLogin(userNaam='', userEmail=''){
     try{const d=localStorage.getItem('blitz_resps');if(d){const r=JSON.parse(d);resps=r.map(x=>typeof x==='string'?{naam:x,rol:''}:x);}}catch{}
   }
   prevSoldSet=new Set(projects.filter(p=>p.pct===100).map(p=>p.naam));
-
   // Sla userNaam op voor gebruik na data laden
   window._pendingUserLink={naam:userNaam,email:userEmail};
 
@@ -4821,21 +5764,24 @@ function b2cBadgeW(w){return{Koud:'b-koud',Lauw:'b-lauw',Warm:'b-warm',Hot:'b-ho
 
 // ─── RENDER LEADS ───────────────────────────────────
 function b2cRenderStats(){
-  const t=b2cLeads.length;
-  const v=b2cLeads.filter(l=>l.visitDatum&&l.visitDatum>=today()).length;
-  const w=b2cLeads.filter(l=>l.warmte==='Warm'||l.warmte==='Hot').length;
-  const g=b2cLeads.filter(l=>l.status==='Gewonnen').length;
-  document.getElementById('b2c-st-totaal').textContent=t;
-  document.getElementById('b2c-st-visits').textContent=v;
-  document.getElementById('b2c-st-warm').textContent=w;
-  document.getElementById('b2c-st-gewonnen').textContent=g;
+  try{
+    const t=b2cLeads.length;
+    const v=b2cLeads.filter(l=>l.visitDatum&&l.visitDatum>=today()).length;
+    const w=b2cLeads.filter(l=>l.warmte==='Warm'||l.warmte==='Hot').length;
+    const g=b2cLeads.filter(l=>l.status==='Gewonnen').length;
+    const stEl=id=>{const e=document.getElementById(id);if(e)return e;};
+    if(stEl('b2c-st-totaal'))stEl('b2c-st-totaal').textContent=t;
+    if(stEl('b2c-st-visits'))stEl('b2c-st-visits').textContent=v;
+    if(stEl('b2c-st-warm'))stEl('b2c-st-warm').textContent=w;
+    if(stEl('b2c-st-gewonnen'))stEl('b2c-st-gewonnen').textContent=g;
+  }catch(e){console.warn('b2cRenderStats:',e);}
 }
 
 function b2cRenderPills(){
   // Resp pills — klikbaar
   const respEl=document.getElementById('b2c-pills-resp');
   if(respEl){
-    const rNames=['alle',...new Set([...b2cLeads.map(l=>l.resp),...respNames()].filter(Boolean))];
+    const rNames=['alle',...new Set([...b2cLeads.map(l=>l.resp),...respNames('sales')].filter(Boolean))];
     respEl.innerHTML=rNames.map(r=>`<button class="pill${r==='alle'?' all':''}${b2cRespFilter===r?' active':''}" onclick="b2cSetRespFilter('${r}')">${r==='alle'?'<i class="ti ti-users" style="font-size:12px;margin-right:3px"></i>Iedereen':r}</button>`).join('');
   }
   // Warmte pills
@@ -4939,7 +5885,7 @@ function b2cHeractiveer(id){
   if(!confirm(`"${b2cNaam(l)}" terugzetten naar actieve leads?`))return;
   l.status='Nieuw';
   l.acties=l.acties||[];
-  l.acties.push({datum:today(),tekst:'Teruggezet naar actieve leads'});
+  l.acties.push(logEntry('Teruggezet naar actieve leads'));
   b2cRenderLeads();b2cRenderGewonnen();b2cRenderVerloren();
   showToast('Lead teruggezet naar actief.');
 }
@@ -4951,7 +5897,7 @@ function b2cMarkeerStatus(status){
   if(status==='Gewonnen'&&!l.gewonnenOp)l.gewonnenOp=today();
   if(status==='Verloren'&&!l.verliesOp)l.verliesOp=today();
   l.acties=l.acties||[];
-  l.acties.push({datum:today(),tekst:'Status gewijzigd naar: '+status});
+  l.acties.push(logEntry('Status gewijzigd naar: '+status));
   // Close overlay without triggering b2c re-render
   document.getElementById('b2c-detail-overlay').classList.remove('open');
   b2cOpenLeadId=null;
@@ -5007,8 +5953,7 @@ function b2cRenderLeads(){
     });
   }
 
-  board.innerHTML=B2C_KANBAN_COLS.map(status=>{
-    const isGewonnen=status==='Gewonnen';
+  board.innerHTML=B2C_KANBAN_COLS.map(status=>{    const isGewonnen=status==='Gewonnen';
     const cols=sorteerLeads(list.filter(l=>l.status===status));
     const tiles=cols.map(l=>{
       const warmteDot={Koud:'#8a9ba3',Lauw:'#f59e0b',Warm:'#f97316',Hot:'#ef4444'}[l.warmte]||'var(--tx3)';
@@ -5023,9 +5968,7 @@ function b2cRenderLeads(){
         const opLbl=diff<0?`${Math.abs(diff)}d te laat`:diff===0?'Vandaag':diff===1?'Morgen':nextOp.datum.slice(5).replace('-','/');
         opBadge=`<div style="font-size:9px;color:${opKleur};margin-top:3px;display:flex;align-items:center;gap:2px"><i class="ti ti-phone" style="font-size:9px"></i>${opLbl}${nextOp.uur?' '+nextOp.uur:''}</div>`;
       }
-      return`<div draggable="true" data-id="${l.id}"
-          ondragstart="b2cDragStart(event,${l.id})" ondragend="b2cDragEnd(event)"
-          onclick="if(!b2cDidDrag)b2cOpenDetail(${l.id})"
+      return`<div draggable="true" data-b2c-id="${l.id}"
           style="background:var(--bg);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:8px;padding:10px 11px;cursor:pointer;user-select:none;transition:border-color .15s">
         <div style="font-size:12px;font-weight:700;margin-bottom:2px">${b2cNaam(l)}</div>
         <div style="font-size:10px;color:var(--tx3);margin-bottom:6px">${l.adres||l.tel||'—'}</div>
@@ -5036,7 +5979,6 @@ function b2cRenderLeads(){
           </div>
           <div style="display:flex;gap:4px">${visitBadge}${dagBadge}</div>
         </div>
-        ${l.actie?`<div style="font-size:10px;color:var(--tx3);margin-top:5px;border-top:1px solid var(--bd);padding-top:4px"><i class="ti ti-arrow-right" style="font-size:9px"></i> ${l.actie}</div>`:''}
         ${opBadge}
       </div>`;
     }).join('')||`<div style="text-align:center;padding:16px 8px;color:var(--tx3);font-size:11px"><i class="ti ti-inbox" style="font-size:18px;display:block;margin-bottom:4px"></i>Leeg</div>`;
@@ -5046,60 +5988,196 @@ function b2cRenderLeads(){
         <span style="display:inline-block;background:var(--bg3);color:var(--tx3);font-size:11px;font-weight:600;padding:1px 7px;border-radius:20px;margin-left:6px">${cols.length}</span>
       </div>
       <div style="flex:1;overflow-y:auto;padding-top:4px;padding-right:2px;scrollbar-width:thin"
-           ondragover="b2cDragOver(event)" ondragleave="b2cDragLeave(event)" ondrop="b2cDrop(event,'${status}')">${tiles}</div>
+           data-b2c-status="${status}">${tiles}</div>
     </div>`;
   }).join('');
+  b2cAttachBoardEvents();
 }
-
-
-
-
-function b2cDragStart(e,id){
-  b2cDragLeadId=id;b2cDidDrag=false;
-  e.dataTransfer.effectAllowed='move';
-  e.dataTransfer.setData('text/plain',String(id));
-  setTimeout(()=>{const el=document.querySelector('[data-id="'+id+'"]');if(el)el.style.opacity='.3';},0);
-  const tz=document.getElementById('b2c-trash-zone');if(tz)tz.style.display='flex';
-}
-function b2cDragEnd(e){
-  b2cDidDrag=true;
-  document.querySelectorAll('[data-id]').forEach(el=>el.style.opacity='');
-  const tz=document.getElementById('b2c-trash-zone');if(tz)tz.style.display='none';
-  setTimeout(()=>{b2cDidDrag=false;},150);
-}
-function b2cDragOver(e){e.preventDefault();e.stopPropagation();e.currentTarget.style.background='rgba(0,223,163,.06)';}
-function b2cDragLeave(e){if(!e.currentTarget.contains(e.relatedTarget))e.currentTarget.style.background='';}
-function b2cDrop(e,newStatus){
-  e.preventDefault();e.stopPropagation();e.currentTarget.style.background='';
-  const id=parseInt(e.dataTransfer.getData('text/plain')||b2cDragLeadId);
-  if(!id)return;
-  const l=b2cLeads.find(x=>x.id===id);
-  if(!l||l.status===newStatus){b2cDragLeadId=null;return;}
-  // Installatiepartner popup bij 'Offerte installateur'
-  if(newStatus==='Offerte installateur'){
-    b2cInstallateurLeadId=id;
-    b2cInstallateurNewStatus=newStatus;
-    b2cDragLeadId=null;
-    document.getElementById('b2c-installateur-input').value=l.installatiepartner||'';
-    document.getElementById('b2c-installateur-overlay').classList.add('open');
-    setTimeout(()=>document.getElementById('b2c-installateur-input').focus(),100);
+function b2cBevestigGewonnenEigen(){
+  if(window._b2bGewonnenProject){
+    const p=window._b2bGewonnenProject;window._b2bGewonnenProject=null;
+    b2cSluitGewonnenKeuze();
+    doorstuurNaarInstallatie('b2b',p.id||p._rowid);
     return;
   }
-  // Gewonnen → keuze-popup eigen of partner
-  if(newStatus==='Gewonnen'){
-    b2cOpenLeadId=id;
-    b2cDragLeadId=null;
-    document.getElementById('b2c-gewonnen-keuze-naam').textContent=b2cNaam(l);
-    document.getElementById('b2c-gewonnen-keuze-overlay').classList.add('open');
+  const l=b2cLeads.find(x=>x.id===b2cOpenLeadId);
+  b2cSluitGewonnenKeuze();
+  if(!l)return;
+  doorstuurNaarInstallatie('b2c', l.id);
+  b2cRenderGewonnen();
+  showTab('b2c-gewonnen');
+}
+
+function b2cBevestigGewonnenPartner(){
+  if(window._b2bGewonnenProject){
+    const p=window._b2bGewonnenProject;window._b2bGewonnenProject=null;
+    b2cSluitGewonnenKeuze();
+    document.getElementById('b2c-gw-partner-naam').textContent=p.naam||p.klant||'';
+    window._b2bGwProject=p;
+    document.getElementById('b2c-gw-partner-input').value=p.installatiepartner||'';
+    const chip=document.getElementById('b2c-gw-partner-chip');
+    chip.style.display=p.installatiepartner?'flex':'none';
+    if(p.installatiepartner)chip.innerHTML=`<i class="ti ti-building" style="font-size:12px"></i> ${p.installatiepartner}`;
+    document.getElementById('b2c-gw-partner-overlay').classList.add('open');
     return;
   }
-  l.status=newStatus;
-  l.acties=l.acties||[];l.acties.push({datum:today(),tekst:'Status → '+newStatus});
+  // Partner installeert: toon partner-zoek overlay
+  const l=b2cLeads.find(x=>x.id===b2cOpenLeadId);
+  if(!l){b2cSluitGewonnenKeuze();return;}
+  b2cSluitGewonnenKeuze();
+  const vooraf=l.installatiepartner||'';
+  document.getElementById('b2c-gw-partner-naam').textContent=b2cNaam(l);
+  window._b2bGwProject=null;
+  document.getElementById('b2c-gw-partner-input').value=vooraf;
+  document.getElementById('b2c-gw-partner-dd').style.display='none';
+  const chip=document.getElementById('b2c-gw-partner-chip');
+  chip.style.display=vooraf?'flex':'none';
+  if(vooraf)chip.innerHTML=`<i class="ti ti-building" style="font-size:12px"></i> ${vooraf}`;
+  document.getElementById('b2c-gw-partner-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('b2c-gw-partner-input').focus(),100);
+}
+
+function b2cGwPartnerZoek(q){
+  const dd=document.getElementById('b2c-gw-partner-dd');
+  if(!q||q.length<1){dd.style.display='none';return;}
+  const ql=q.toLowerCase();
+  // Zoek in CRM klanten + eerder gebruikte partners in leads
+  const crmHits=(klanten||[]).filter(k=>(k.naam||'').toLowerCase().includes(ql)||(k.contact||'').toLowerCase().includes(ql)).slice(0,5);
+  const partnerHits=[...new Set(b2cLeads.filter(l=>l.installatiepartner).map(l=>l.installatiepartner))].filter(p=>p.toLowerCase().includes(ql)).slice(0,3);
+  const results=[];
+  crmHits.forEach(k=>results.push({label:k.naam,sub:k.contact||k.adres||'',icon:'ti-building'}));
+  partnerHits.filter(p=>!crmHits.find(k=>k.naam===p)).forEach(p=>results.push({label:p,sub:'Eerder gebruikt',icon:'ti-history'}));
+  if(!results.length){dd.style.display='none';return;}
+  dd.innerHTML=results.map((r,i)=>`<div data-gwpi="${i}" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+    <i class="ti ${r.icon}" style="color:var(--green);font-size:13px"></i>
+    <div><div style="font-size:12px;font-weight:600">${r.label}</div><div style="font-size:10px;color:var(--tx3)">${r.sub}</div></div>
+  </div>`).join('');
+  dd._results=results;
+  dd.querySelectorAll('[data-gwpi]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const r=dd._results[parseInt(el.dataset.gwpi)];
+      document.getElementById('b2c-gw-partner-input').value=r.label;
+      dd.style.display='none';
+      const chip=document.getElementById('b2c-gw-partner-chip');
+      chip.style.display='flex';
+      chip.innerHTML=`<i class="ti ti-building" style="font-size:12px"></i> ${r.label}`;
+    });
+  });
+  dd.style.display='block';
+}
+
+function b2cBevestigGwPartner(){
+  const naam=(document.getElementById('b2c-gw-partner-input').value||'').trim();
+  if(!naam){showToast('Vul een installatiepartner in.');return;}
+  const l=b2cLeads.find(x=>x.id===b2cOpenLeadId);
+  if(!l){b2cSluitGwPartner();return;}
+  l.status='Gewonnen';
+  if(!l.gewonnenOp)l.gewonnenOp=today();
+  l.installatieType='partner';
+  l.installatiepartner=naam;
+  l.acties=l.acties||[];
+  l.acties.push(logEntry(`✓ Gewonnen — partner: ${naam}`));
   sbSaveB2cLead(l);
-  b2cDragLeadId=null;
-  b2cRenderLeads();
-  showToast('"'+b2cNaam(l)+'" → '+newStatus);
+  b2cSluitGwPartner();
+  b2cRenderGewonnen();
+  showTab('b2c-gewonnen');
+  showToast(`🎉 Gewonnen! Partner: ${naam}`);
 }
+
+function b2cSluitGwPartner(){
+  document.getElementById('b2c-gw-partner-overlay').classList.remove('open');
+  document.getElementById('b2c-gw-partner-dd').style.display='none';
+}
+
+let _b2cDragging=false;
+let _b2cDragId=null;
+
+function b2cAttachBoardEvents(){
+  const board=document.getElementById('b2c-kanban-board');
+  if(!board||board._eventsAttached)return;
+  board._eventsAttached=true;
+
+  // Drag start — delegated
+  board.addEventListener('dragstart',e=>{
+    const tile=e.target.closest('[data-b2c-id]');
+    if(!tile)return;
+    _b2cDragging=false;
+    _b2cDragId=parseInt(tile.dataset.b2cId);
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',String(_b2cDragId));
+    setTimeout(()=>tile.style.opacity='.3',0);
+    const tz=document.getElementById('b2c-trash-zone');if(tz)tz.style.display='flex';
+  });
+
+  // Drag end — delegated
+  board.addEventListener('dragend',e=>{
+    const tile=e.target.closest('[data-b2c-id]');
+    if(tile)tile.style.opacity='';
+    _b2cDragging=true;
+    const tz=document.getElementById('b2c-trash-zone');if(tz)tz.style.display='none';
+    // Reset after click timeout so click handler can read _b2cDragging
+    setTimeout(()=>{_b2cDragging=false;_b2cDragId=null;},200);
+  });
+
+  // Drag over columns — delegated
+  board.addEventListener('dragover',e=>{
+    const col=e.target.closest('[data-b2c-status]');
+    if(!col)return;
+    e.preventDefault();e.stopPropagation();
+    col.style.background='rgba(0,223,163,.06)';
+  });
+
+  // Drag leave columns — delegated
+  board.addEventListener('dragleave',e=>{
+    const col=e.target.closest('[data-b2c-status]');
+    if(!col)return;
+    if(!col.contains(e.relatedTarget))col.style.background='';
+  });
+
+  // Drop on columns — delegated
+  board.addEventListener('drop',e=>{
+    const col=e.target.closest('[data-b2c-status]');
+    if(!col)return;
+    e.preventDefault();e.stopPropagation();
+    col.style.background='';
+    const newStatus=col.dataset.b2cStatus;
+    const id=parseInt(e.dataTransfer.getData('text/plain')||_b2cDragId);
+    if(!id)return;
+    const l=b2cLeads.find(x=>x.id===id);
+    if(!l||l.status===newStatus){_b2cDragId=null;return;}
+    if(newStatus==='Offerte installateur'){
+      _b2cDragId=null;
+      const huidig=l.installatiepartner||'';
+      b2cInstOpenOverlay(id,newStatus,huidig);
+      return;
+    }
+    if(newStatus==='Gewonnen'){
+      b2cOpenLeadId=id;_b2cDragId=null;
+      document.getElementById('b2c-gewonnen-keuze-naam').textContent=b2cNaam(l);
+      document.getElementById('b2c-gewonnen-keuze-overlay').classList.add('open');
+      return;
+    }
+    l.status=newStatus;
+    l.acties=l.acties||[];l.acties.push(logEntry('Status → '+newStatus));
+    sbSaveB2cLead(l);_b2cDragId=null;
+    b2cRenderLeads();
+    showToast('"'+b2cNaam(l)+'" → '+newStatus);
+  });
+
+  // Click — delegated (only if not a drag)
+  board.addEventListener('click',e=>{
+    if(_b2cDragging)return;
+    const tile=e.target.closest('[data-b2c-id]');
+    if(!tile)return;
+    b2cOpenDetail(parseInt(tile.dataset.b2cId));
+  });
+}
+
+function b2cDragStart(e,id){} // legacy stub
+function b2cDragEnd(e){}      // legacy stub
+function b2cDragOver(e){e.preventDefault();}
+function b2cDragLeave(e){}
+function b2cDrop(e,newStatus){e.preventDefault();}  // handled by delegation
 function b2cTrashOver(e){e.preventDefault();const tz=document.getElementById('b2c-trash-zone');if(tz){tz.style.background='#fcebeb';tz.style.transform='scale(1.15)';}}
 function b2cTrashLeave(e){const tz=document.getElementById('b2c-trash-zone');if(tz){tz.style.background='';tz.style.transform='';}}
 function b2cTrashDrop(e){
@@ -5122,7 +6200,7 @@ function b2cBevestigVerlies(){
   if(!l){b2cAnnuleerVerlies();return;}
   const reden=document.getElementById('b2c-verlies-input').value.trim();
   l.status='Verloren';l.verliesReden=reden||'Niet opgegeven';l.verliesOp=today();
-  l.acties=l.acties||[];l.acties.push({datum:today(),tekst:'Verloren'+(reden?' — '+reden:'')});
+  l.acties=l.acties||[];l.acties.push(logEntry('Verloren'+(reden?' — '+reden:'')));
   sbSaveB2cLead(l);
   b2cAnnuleerVerlies();b2cRenderLeads();b2cRenderVerloren();showTab('b2c-verloren');
   showToast('"'+b2cNaam(l)+'" als verloren gemarkeerd.');
@@ -5134,13 +6212,13 @@ function b2cAnnuleerVerlies(){
 
 function b2cBevestigInstallateur(){
   const naam=document.getElementById('b2c-installateur-input').value.trim();
-  if(!naam){showToast('Vul een installatiepartner in.');return;}
+  if(!naam){showToast('Selecteer of typ een installatiepartner.');return;}
   const l=b2cLeads.find(x=>x.id===b2cInstallateurLeadId);
   if(!l){b2cSluitInstallateur();return;}
   l.status=b2cInstallateurNewStatus;
   l.installatiepartner=naam;
   l.acties=l.acties||[];
-  l.acties.push({datum:today(),tekst:`Status → ${b2cInstallateurNewStatus} — Partner: ${naam}`});
+  l.acties.push(logEntry(`Status → ${b2cInstallateurNewStatus} — Partner: ${naam}`));
   sbSaveB2cLead(l);
   b2cSluitInstallateur();
   b2cRenderLeads();
@@ -5148,8 +6226,84 @@ function b2cBevestigInstallateur(){
 }
 function b2cSluitInstallateur(){
   document.getElementById('b2c-installateur-overlay').classList.remove('open');
+  document.getElementById('b2c-inst-dd').style.display='none';
+  document.getElementById('b2c-inst-nieuw-form').style.display='none';
   b2cInstallateurLeadId=null;
   b2cInstallateurNewStatus=null;
+}
+function b2cInstOpenOverlay(leadId, status, huidigPartner){
+  b2cInstallateurLeadId=leadId;
+  b2cInstallateurNewStatus=status;
+  // Reset form
+  document.getElementById('b2c-inst-search').value=huidigPartner||'';
+  document.getElementById('b2c-installateur-input').value=huidigPartner||'';
+  document.getElementById('b2c-inst-dd').style.display='none';
+  document.getElementById('b2c-inst-nieuw-form').style.display='none';
+  const chip=document.getElementById('b2c-inst-chip');
+  chip.style.display=huidigPartner?'flex':'none';
+  if(huidigPartner)chip.innerHTML=`<i class="ti ti-tools" style="font-size:11px"></i> ${huidigPartner}`;
+  document.getElementById('b2c-installateur-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('b2c-inst-search').focus(),100);
+}
+function b2cInstZoek(q){
+  const dd=document.getElementById('b2c-inst-dd');
+  if(!q||q.length<1){dd.style.display='none';return;}
+  const ql=q.toLowerCase();
+  const partners=klanten.filter(k=>k.isInstallatiepartner&&(k.naam||'').toLowerCase().includes(ql));
+  const anderen=klanten.filter(k=>!k.isInstallatiepartner&&(k.naam||'').toLowerCase().includes(ql)).slice(0,3);
+  const eerder=[...new Set(b2cLeads.filter(l=>l.installatiepartner).map(l=>l.installatiepartner))].filter(p=>p.toLowerCase().includes(ql)&&!klanten.find(k=>k.naam===p));
+  const results=[];
+  partners.forEach(k=>results.push({label:k.naam,sub:'✓ Installatiepartner',icon:'ti-tools',color:'#e85d04'}));
+  anderen.forEach(k=>results.push({label:k.naam,sub:k.contact||'CRM klant',icon:'ti-building',color:'var(--tx2)'}));
+  eerder.forEach(p=>results.push({label:p,sub:'Eerder gebruikt',icon:'ti-history',color:'var(--tx3)'}));
+  if(!results.length){dd.style.display='none';return;}
+  dd.innerHTML=results.map((r,i)=>`<div data-ii="${i}" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+    <i class="ti ${r.icon}" style="color:${r.color};font-size:12px;flex-shrink:0"></i>
+    <div><div style="font-size:12px;font-weight:600">${r.label}</div><div style="font-size:10px;color:var(--tx3)">${r.sub}</div></div>
+  </div>`).join('');
+  dd._results=results;
+  dd.querySelectorAll('[data-ii]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const r=dd._results[parseInt(el.dataset.ii)];
+      document.getElementById('b2c-inst-search').value=r.label;
+      document.getElementById('b2c-installateur-input').value=r.label;
+      dd.style.display='none';
+      const chip=document.getElementById('b2c-inst-chip');
+      chip.style.display='flex';
+      chip.innerHTML=`<i class="ti ti-tools" style="font-size:11px"></i> ${r.label}`;
+    });
+  });
+  dd.style.display='block';
+}
+function b2cInstToggleNieuw(){
+  const f=document.getElementById('b2c-inst-nieuw-form');
+  f.style.display=f.style.display==='none'?'block':'none';
+  if(f.style.display==='block')document.getElementById('b2c-inst-n-naam').focus();
+}
+async function b2cInstAanmaken(){
+  const naam=document.getElementById('b2c-inst-n-naam').value.trim();
+  if(!naam){showToast('Bedrijfsnaam is verplicht.');return;}
+  const nieuw={
+    naam,
+    btw:document.getElementById('b2c-inst-n-btw').value.trim(),
+    contact:document.getElementById('b2c-inst-n-contact').value.trim(),
+    contactgsm:document.getElementById('b2c-inst-n-gsm').value.trim(),
+    contactemail:document.getElementById('b2c-inst-n-email').value.trim(),
+    isInstallatiepartner:true
+  };
+  try{
+    const newId=await sbSaveKlant(nieuw);
+    if(newId)nieuw.id=newId;
+    klanten.push(nieuw);
+  }catch{klanten.push(nieuw);}
+  // Koppel automatisch
+  document.getElementById('b2c-inst-search').value=naam;
+  document.getElementById('b2c-installateur-input').value=naam;
+  document.getElementById('b2c-inst-nieuw-form').style.display='none';
+  const chip=document.getElementById('b2c-inst-chip');
+  chip.style.display='flex';
+  chip.innerHTML=`<i class="ti ti-tools" style="font-size:11px"></i> ${naam} <span style="font-size:10px;opacity:.7;margin-left:4px">(nieuw in CRM)</span>`;
+  showToast(`"${naam}" aangemaakt in CRM en geselecteerd.`);
 }
 
 // ─── DETAIL MODAL ───────────────────────────────────
@@ -5159,6 +6313,7 @@ function b2cOpenDetail(id){
   document.getElementById('b2c-detail-titel').textContent=b2cNaam(l);
   document.getElementById('b2c-detail-overlay').classList.add('open');
   b2cShowDetailTab('info');
+  b2cRenderLogSidebar(l);
 }
 
 function b2cCloseDetail(){
@@ -5172,6 +6327,16 @@ function b2cCloseDetail(){
 function b2cVerwijderLead(id){
   const l=b2cLeads.find(x=>x.id===id);if(!l)return;
   if(!confirm(`Lead "${b2cNaam(l)}" definitief verwijderen? Dit kan niet ongedaan gemaakt worden.`))return;
+  // Verwijder ook gelinkte installatietickets
+  const linkId='b2c-'+id;
+  const gelinkt=installaties.filter(i=>i.linkId===linkId);
+  gelinkt.forEach(i=>{
+    sbDeleteInstallatie(i.id);
+  });
+  if(gelinkt.length>0){
+    installaties=installaties.filter(i=>i.linkId!==linkId);
+    instSaveToStorage();
+  }
   sbDeleteB2cLead(id);
   b2cLeads=b2cLeads.filter(x=>x.id!==id);
   b2cCloseDetail();
@@ -5200,7 +6365,7 @@ function b2cRenderInfo(l){
       <div class="b2c-summary-item"><div class="b2c-summary-lbl">Verantwoordelijke</div>
         <select id="bi-resp" style="font-size:12px;padding:3px 6px;width:auto">
           <option value="">—</option>
-          ${respNames().map(r=>`<option value="${r}"${l.resp===r?' selected':''}>${r}</option>`).join('')}
+          ${respNames('sales').map(r=>`<option value="${r}"${l.resp===r?' selected':''}>${r}</option>`).join('')}
         </select>
       </div>
       <div class="b2c-summary-item"><div class="b2c-summary-lbl">Visit</div><div class="b2c-summary-val">${l.visitDatum?(l.visitDatum+(l.visitUur?' om '+l.visitUur:'')):'Niet gepland'}</div></div>
@@ -5232,7 +6397,7 @@ function b2cRenderInfo(l){
       <div>
         <div style="font-family:'Poppins',sans-serif;font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Pipeline</div>
         <div class="b2c-status-steps">${B2C_STATUSSEN.map(s=>`<button class="b2c-status-step${l.status===s?' current':''}" onclick="b2cChangeStatus(${l.id},'${s}')">${s}</button>`).join('')}</div>
-        <div class="field" style="margin-bottom:8px"><label>Volgende actie</label><input id="bi-actie" type="text" value="${l.actie||''}" style="font-size:12px"></div>
+
         ${!l.visitDatum
           ?`<button class="btn primary" style="width:100%;justify-content:center" onclick="b2cOpenVisitModal(${l.id})"><i class="ti ti-calendar-plus"></i> Visit inplannen</button>`
           :`<div style="background:rgba(0,223,163,.08);border:1px solid rgba(0,223,163,.3);border-radius:var(--r);padding:10px 14px;font-size:13px;display:flex;align-items:center;justify-content:space-between"><span><i class="ti ti-calendar-event" style="color:var(--green);margin-right:6px"></i><strong>${l.visitDatum}</strong>${l.visitUur?' om <strong>'+l.visitUur+'</strong>':''}</span><button class="btn sm" onclick="b2cOpenVisitModal(${l.id})"><i class="ti ti-edit"></i></button></div>`}
@@ -5287,20 +6452,46 @@ function b2cSaveLeadEdit(){
   const nwarmte=get('bi-warmte');if(nwarmte!==null&&nwarmte!==l.warmte){l.warmte=nwarmte;changed.push('warmte');}
   const nnotities=get('bi-notities');if(nnotities!==null&&nnotities!==l.notities){l.notities=nnotities;changed.push('notities');}
   const nresp=get('bi-resp');if(nresp!==null&&nresp!==l.resp){l.resp=nresp;changed.push('verantwoordelijke');}
-  const nactie=get('bi-actie');if(nactie!==null&&nactie!==l.actie){l.actie=nactie;changed.push('volgende actie');}
   const naanmaak=get('bi-aanmaakdatum');if(naanmaak!==null&&naanmaak!==l.aanmaakdatum){l.aanmaakdatum=naanmaak;changed.push('aanmaakdatum');}
   const noffertenr=get('bi-offertenr');if(noffertenr!==null&&noffertenr!==l.offertenr){l.offertenr=noffertenr;changed.push('offertenummer');}
   if(changed.length){
     l.acties=l.acties||[];
-    l.acties.push({datum:today(),tekst:'Bewerkt: '+changed.join(', ')});
+    l.acties.push(logEntry('Bewerkt: '+changed.join(', ')));
   }
   document.getElementById('b2c-detail-titel').textContent=b2cNaam(l);
   b2cRenderLeads();
   sbSaveB2cLead(l);
+  b2cRenderLogSidebar(l);
   b2cCloseDetail();
   if(changed.length)showToast('Lead opgeslagen ✓ ('+changed.join(', ')+')');
 }
 
+// ── B2C ACTIVITEITENLOG SIDEBAR ──────────────────────
+function b2cRenderLogSidebar(l){
+  const el=document.getElementById('b2c-log-sidebar-list');if(!el)return;
+  const acties=(l?l.acties||[]:[]);
+  if(!acties.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--tx3);text-align:center;padding:16px 0"><i class="ti ti-timeline" style="display:block;font-size:22px;margin-bottom:6px"></i>Nog geen activiteit.</div>';
+    return;
+  }
+  el.innerHTML=[...acties].reverse().map(a=>`
+    <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--bd)">
+      <div style="font-size:10px;color:var(--tx3);font-weight:600">${a.datum||''}${a.tijdstip?' '+a.tijdstip:''}</div>
+      ${a.gebruiker?`<div style="font-size:9px;color:var(--tx3);font-style:italic;margin-bottom:2px">${a.gebruiker}</div>`:''}
+      <div style="font-size:12px;color:var(--tx)">${a.tekst}</div>
+    </div>`).join('');
+}
+function b2cLogActieSidebar(){
+  const l=b2cLeads.find(x=>x.id===b2cOpenLeadId);if(!l)return;
+  const inp=document.getElementById('b2c-actie-sidebar-input');
+  const txt=inp?inp.value.trim():'';
+  if(!txt){showToast('Vul een actie in.');return;}
+  l.acties=l.acties||[];
+  l.acties.push(logEntry(txt));
+  if(inp)inp.value='';
+  b2cRenderLogSidebar(l);
+  sbSaveB2cLead(l);
+}
 // ── B2C OPVOLGINGSAGENDA ──────────────────────────────
 function b2cRenderOpvolgingen(l){
   const ops=(l.opvolgingen||[]).filter(op=>!op.gedaan).slice().sort((a,b)=>a.datum.localeCompare(b.datum));
@@ -5411,7 +6602,7 @@ function b2cSaveOpvolging(id){
   l.opvolgingen=l.opvolgingen||[];
   l.opvolgingen.push({datum,uur:document.getElementById('bop-uur').value,tekst,gedaan:false});
   l.acties=l.acties||[];
-  l.acties.push({datum:today(),tekst:'Opvolging ingepland: '+tekst+' op '+datum});
+  l.acties.push(logEntry('Opvolging ingepland: '+tekst+' op '+datum));
   sbSaveB2cLead(l);
   document.getElementById('b2c-opvolging-form').style.display='none';
   document.getElementById('b2c-opvolging-list').innerHTML=b2cRenderOpvolgingen(l);
@@ -5425,7 +6616,7 @@ function b2cToggleOpvolgingGedaan(leadId,idx){
   if(op.gedaan){
     op.gedaan=false;op.opmerking='';
     l.acties=l.acties||[];
-    l.acties.push({datum:today(),tekst:'Opvolging heractiveerd: '+op.tekst});
+    l.acties.push(logEntry('Opvolging heractiveerd: '+op.tekst));
     sbSaveB2cLead(l);
     const listEl=document.getElementById('b2c-opvolging-list');
     if(listEl)listEl.innerHTML=b2cRenderOpvolgingen(l);
@@ -5453,7 +6644,7 @@ function b2cBevestigAfvink(){
   const opmerking=document.getElementById('b2c-afvink-opmerking').value.trim();
   op.gedaan=true;op.opmerking=opmerking;
   l.acties=l.acties||[];
-  l.acties.push({datum:today(),tekst:`✓ Opvolging gedaan: ${op.tekst}${opmerking?' — '+opmerking:''}`});
+  l.acties.push(logEntry(`✓ Opvolging gedaan: ${op.tekst}${opmerking?' — '+opmerking:''}`));
   sbSaveB2cLead(l);
   b2cSluitAfvink();
   const listEl=document.getElementById('b2c-opvolging-list');
@@ -5487,18 +6678,22 @@ function b2cChangeStatus(id,s){
     return;
   }
   l.status=s;l.acties=l.acties||[];
-  l.acties.push({datum:today(),tekst:'Status gewijzigd naar: '+s});
+  l.acties.push(logEntry('Status gewijzigd naar: '+s));
   sbSaveB2cLead(l);
   showToast('Status: '+s);b2cShowDetailTab('info');
+  b2cRenderLogSidebar(l);
 }
 
 function b2cLogActie(id){
   const inp=document.getElementById('b2c-actie-input');
-  const tekst=inp.value.trim();if(!tekst)return;
+  const tekst=inp?inp.value.trim():'';if(!tekst)return;
   const l=b2cLeads.find(x=>x.id===id);if(!l)return;
-  l.acties=l.acties||[];l.acties.push({datum:today(),tekst});
+  l.acties=l.acties||[];l.acties.push(logEntry(tekst));
   sbSaveB2cLead(l);
-  inp.value='';b2cShowDetailTab('info');showToast('Actie gelogd');
+  if(inp)inp.value='';
+  b2cRenderLogSidebar(l);
+  b2cShowDetailTab('info');
+  showToast('Actie gelogd');
 }
 
 // ─── TAB 2: SCREENING ───────────────────────────────
@@ -5691,7 +6886,7 @@ function b2cSaveScreening(){
     fotos:[...b2cScreeningFotos],datum:today()
   };
   if(l.status==='Visit gepland')l.status='Visit gedaan';
-  l.acties=l.acties||[];l.acties.push({datum:today(),tekst:'Screeningsformulier ingevuld'});
+  l.acties=l.acties||[];l.acties.push(logEntry('Screeningsformulier ingevuld'));
   sbSaveB2cLead(l);
   b2cCloseScModal();
   b2cOpenDetail(b2cScreeningLeadId);
@@ -5839,7 +7034,7 @@ function b2cGenereerContract(id){
       </div>
     </div>`;
   document.getElementById('ct-acties').style.display='flex';
-  l.acties=l.acties||[];l.acties.push({datum:today(),tekst:'Contract gegenereerd'});
+  l.acties=l.acties||[];l.acties.push(logEntry('Contract gegenereerd'));
   showToast('Contract gegenereerd!');
 }
 
@@ -5908,8 +7103,8 @@ function b2cOpenNieuw(visitMode){
   document.getElementById('bn-visit-blok').style.display=visitMode?'block':'none';
   document.getElementById('bn-save-btn').innerHTML=visitMode?'<i class="ti ti-map-pin"></i> Lead + visit aanmaken':'<i class="ti ti-check"></i> Lead aanmaken';
   // Reset alle velden
-  ['bn-voornaam','bn-achternaam','bn-tel','bn-email','bn-adres','bn-actie','bn-notities','bn-vdatum'].forEach(id=>{
-    const el=document.getElementById(id);if(el)el.value=id==='bn-actie'?'Eerste contact opnemen':'';
+  ['bn-voornaam','bn-achternaam','bn-tel','bn-email','bn-adres','bn-notities','bn-vdatum'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
   });
   const aanmaakEl=document.getElementById('bn-aanmaakdatum');if(aanmaakEl)aanmaakEl.value=today();
   const offEl=document.getElementById('bn-offertenr');if(offEl)offEl.value='';
@@ -5919,7 +7114,7 @@ function b2cOpenNieuw(visitMode){
   // Vul resp dropdown
   const sel=document.getElementById('bn-resp');
   if(sel){
-    sel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option value="${r}">${r}</option>`).join('');
+    sel.innerHTML='<option value="">— kies —</option>'+respNames('sales').map(r=>`<option value="${r}">${r}</option>`).join('');
   }
   document.getElementById('b2c-nieuw-overlay').classList.add('open');
 }
@@ -5933,7 +7128,7 @@ function b2cSaveLead(){
   const vd=b2cIsVisitMode?document.getElementById('bn-vdatum').value:null;
   const vu=b2cIsVisitMode?document.getElementById('bn-vuur').value:null;
   const acties=[{datum:today(),tekst:'Lead aangemaakt'}];
-  if(b2cIsVisitMode&&vd)acties.push({datum:today(),tekst:'Visit gepland op '+vd+' om '+vu});
+  if(b2cIsVisitMode&&vd)acties.push(logEntry('Visit gepland op '+vd+' om '+vu));
   const aanmaakDatum=document.getElementById('bn-aanmaakdatum')?.value||today();
   b2cLeads.unshift({
     id:b2cNextId++,voornaam:vn,achternaam:an,
@@ -5944,7 +7139,7 @@ function b2cSaveLead(){
     warmte:document.getElementById('bn-warmte').value,
     status:b2cIsVisitMode&&vd?'Visit gepland':'Nieuw',
     resp:document.getElementById('bn-resp').value,
-    actie:document.getElementById('bn-actie').value||'Opvolgen',
+    actie:'',
     notities:document.getElementById('bn-notities').value,
     visitDatum:vd||null,visitUur:vu||null,screening:null,acties
   });
@@ -5980,7 +7175,7 @@ function b2cSaveVisit(){
   l.adres=document.getElementById('bv-adres').value;
   l.notities=document.getElementById('bv-nota').value;
   if(l.status==='Nieuw'||l.status==='Gecontacteerd')l.status='Visit gepland';
-  l.acties=l.acties||[];l.acties.push({datum:today(),tekst:'Visit gepland op '+l.visitDatum+' om '+l.visitUur});
+  l.acties=l.acties||[];l.acties.push(logEntry('Visit gepland op '+l.visitDatum+' om '+l.visitUur));
   sbSaveB2cLead(l);
   b2cCloseVisitModal();b2cRenderLeads();b2cRenderCalendar();b2cRenderAankomende();
   showToast('Visit ingepland!');
@@ -5991,7 +7186,7 @@ function b2cAnnuleerVisit(){
   if(!confirm(`Visit van ${b2cNaam(l)} op ${l.visitDatum} verwijderen?`))return;
   l.visitDatum=null;l.visitUur=null;
   if(l.status==='Visit gepland')l.status='Nieuw';
-  l.acties=l.acties||[];l.acties.push({datum:today(),tekst:'Visit geannuleerd'});
+  l.acties=l.acties||[];l.acties.push(logEntry('Visit geannuleerd'));
   sbSaveB2cLead(l);
   b2cCloseVisitModal();b2cRenderLeads();b2cRenderCalendar();b2cRenderAankomende();
   showToast('Visit verwijderd.');
@@ -6011,7 +7206,7 @@ function b2cOpenDoorstuur(id){
   document.getElementById('ds-lp').value='1';
   // Vul verantwoordelijken
   const respSel=document.getElementById('ds-resp');
-  respSel.innerHTML='<option value="">— kies —</option>'+respNames().map(r=>`<option value="${r}"${r===l.resp?' selected':''}>${r}</option>`).join('');
+  respSel.innerHTML='<option value="">— kies —</option>'+respNames('sales').map(r=>`<option value="${r}"${r===l.resp?' selected':''}>${r}</option>`).join('');
   document.getElementById('b2c-detail-overlay').classList.remove('open');
   document.getElementById('b2c-doorstuur-overlay').classList.add('open');
 }
@@ -6039,7 +7234,7 @@ function b2cDoorstuurConfirm(){
   };
   projects.push(project);
   // Update B2C lead status
-  if(l){l.status='Offerte';l.acties=l.acties||[];l.acties.push({datum:today(),tekst:'Doorgestuurd als B2B project: '+naam});}
+  if(l){l.status='Offerte';l.acties=l.acties||[];l.acties.push(logEntry('Doorgestuurd als B2B project: '+naam));}
   document.getElementById('b2c-doorstuur-overlay').classList.remove('open');
   sbSaveProject(project).then(newId=>{if(newId)project.id=newId;}).catch(()=>lsSave());
   renderAll();b2cRenderLeads();
@@ -6119,31 +7314,258 @@ function b2cRenderAankomende(){
 // TIJDLIJN (Project modal)
 // ══════════════════════════════════════════════
 function renderTijdlijn(){
-  const el=document.getElementById('m-tijdlijn');if(!el)return;
+  const el=document.getElementById('m-activiteitenlog');if(!el)return;
   if(!currentTijdlijn.length){
-    el.innerHTML='<div style="font-size:12px;color:var(--tx3);text-align:center;padding:16px 0"><i class="ti ti-timeline" style="display:block;font-size:24px;margin-bottom:6px"></i>Nog geen acties geregistreerd.</div>';
+    el.innerHTML='<div style="font-size:12px;color:var(--tx3);text-align:center;padding:16px 0"><i class="ti ti-timeline" style="display:block;font-size:22px;margin-bottom:6px"></i>Nog geen activiteit.</div>';
     return;
   }
-  const sorted=[...currentTijdlijn].sort((a,b)=>b.datum.localeCompare(a.datum));
-  el.innerHTML=sorted.map((item,i)=>{
-    const realIdx=currentTijdlijn.indexOf(item);
-    return `<div class="tl-item">
-      <div class="tl-datum"><input type="date" value="${item.datum}" onchange="tlChangeDatum(${realIdx},this.value)" style="font-size:10px;padding:2px 4px;width:110px;border:1px solid var(--bd);border-radius:4px;background:transparent;color:var(--tx3)"></div>
-      <div class="tl-tekst">${item.tekst}</div>
-      <button class="tl-del" onclick="tlDeleteActie(${realIdx})" title="Verwijderen"><i class="ti ti-x"></i></button>
+  const sorted=[...currentTijdlijn].map((item,i)=>({item,i})).sort((a,b)=>{
+    const dc=(b.item.datum||'').localeCompare(a.item.datum||'');
+    if(dc!==0)return dc;
+    return(b.item.tijdstip||'').localeCompare(a.item.tijdstip||'');
+  });
+  el.innerHTML=sorted.map(({item,i})=>`<div class="tl-item" style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--bd)">
+    <div class="tl-datum" style="min-width:0;flex-shrink:0">
+      <span style="font-size:10px;color:var(--tx3);font-weight:600">${item.datum||''}${item.tijdstip?' '+item.tijdstip:''}</span>
+      ${item.gebruiker?`<br><span style="font-size:9px;color:var(--tx3);font-style:italic">${item.gebruiker}</span>`:''}
+    </div>
+    <div class="tl-tekst" style="font-size:12px;flex:1">${item.tekst}</div>
+    <button class="tl-del" onclick="tlDeleteActie(${i})" title="Verwijderen"><i class="ti ti-x"></i></button>
+  </div>`).join('');
+}
+// ── B2B DASHBOARD OPVOLGINGEN SIDEBAR ─────────────────
+function renderB2bDashOpvolgingen(){
+  const el=document.getElementById('b2b-dash-opvolgingen');if(!el)return;
+  const t=today();
+  const MK=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  const dagNamen=['Zo','Ma','Di','Wo','Do','Vr','Za'];
+
+  // Verzamel alle open opvolgingen van alle projecten, gefilterd op resp
+  const items=[];
+  projects.filter(p=>p.pct!==100||(p.sold_at&&Math.round((new Date(t)-new Date(p.sold_at))/86400000)<=7)).forEach(p=>{
+    if(activeFilter!=='all'&&p.resp!==activeFilter)return;
+    (p.opvolgingen||[]).forEach((op,idx)=>{
+      if(!op.gedaan)items.push({op,p,idx});
+    });
+  });
+  items.sort((a,b)=>{
+    const dc=a.op.datum.localeCompare(b.op.datum);if(dc!==0)return dc;
+    if(a.op.uur&&!b.op.uur)return -1;if(!a.op.uur&&b.op.uur)return 1;
+    return(a.op.uur||'').localeCompare(b.op.uur||'');
+  });
+
+  if(!items.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--tx3);text-align:center;padding:.75rem 0">Geen openstaande opvolgingen.</div>';
+    return;
+  }
+
+  // Groepeer per dag
+  const byDay={};
+  items.forEach(item=>{(byDay[item.op.datum]=byDay[item.op.datum]||[]).push(item);});
+
+  el.innerHTML=Object.keys(byDay).sort().map(datum=>{
+    const verleden=datum<t,isVandaag=datum===t;
+    const d=new Date(datum);
+    const dagLbl=isVandaag?'📅 Vandaag':verleden?`⚠ ${d.getDate()} ${MK[d.getMonth()]}`:`${dagNamen[d.getDay()]} ${d.getDate()} ${MK[d.getMonth()]}`;
+    const kleurLbl=isVandaag?'var(--green)':verleden?'#a32d2d':'var(--tx3)';
+    return`<div style="margin-bottom:10px">
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:${kleurLbl};margin-bottom:5px;padding:0 2px">${dagLbl}</div>
+      ${byDay[datum].map(({op,p,idx})=>`
+        <div style="display:flex;align-items:flex-start;gap:6px;padding:6px 8px;background:var(--bg2);border-radius:8px;margin-bottom:4px;border-left:3px solid ${isVandaag?'var(--green)':verleden?'#a32d2d':'var(--bd2)'}">
+          <button data-b2bpid="${p.id||''}" data-b2boidx="${idx}"
+            style="width:18px;height:18px;border-radius:4px;border:2px solid rgba(99,153,34,.5);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px"
+            onmouseover="this.style.background='rgba(99,153,34,.15)'" onmouseout="this.style.background='none'">
+            <i class="ti ti-check" style="font-size:10px;color:#639922"></i>
+          </button>
+          <div style="flex:1;min-width:0;cursor:pointer" data-b2bopen="${p.id||''}">
+            <div style="font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.naam||p.klant||'—'}</div>
+            <div style="font-size:11px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${op.tekst}</div>
+            ${op.uur?`<div style="font-size:10px;color:var(--tx3)">${op.uur}</div>`:''}
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+
+  // Event listeners via delegation
+  el.querySelectorAll('[data-b2bpid]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const pid=btn.dataset.b2bpid;
+      const oidx=parseInt(btn.dataset.b2boidx);
+      b2bDashAfvinkOpvolging(pid,oidx);
+    });
+  });
+  el.querySelectorAll('[data-b2bopen]').forEach(div=>{
+    div.addEventListener('click',()=>{
+      const pid=div.dataset.b2bopen;
+      const idx=projects.findIndex(p=>String(p.id)===String(pid));
+      if(idx>=0)openModal(idx);
+    });
+  });
+}
+
+function b2bDashAfvinkOpvolging(pid,oidx){
+  // Zoek het project
+  const p=projects.find(x=>String(x.id)===String(pid));
+  if(!p||!p.opvolgingen)return;
+  const op=p.opvolgingen[oidx];if(!op)return;
+  // Sla projectIdx op voor na afvink
+  window._b2bDashAfvink={p,oidx};
+  window._b2bAfvinkActive=true;
+  window._b2bAfvinkIdx=null; // niet modal-mode
+  const omEl=document.getElementById('b2c-afvink-omschrijving');
+  if(omEl)omEl.textContent=`"${op.tekst}" — ${p.naam||p.klant||''} — ${op.datum}${op.uur?' om '+op.uur:''}`;
+  document.getElementById('b2c-afvink-opmerking').value='';
+  document.querySelectorAll('#b2c-afvink-quick .btn').forEach(b=>b.classList.remove('primary'));
+  document.getElementById('b2c-afvink-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('b2c-afvink-opmerking').focus(),100);
+}
+
+// ── B2B OPVOLGINGEN ───────────────────────────────────
+function b2bRenderOpvolgingen(){
+  const el=document.getElementById('b2b-opvolging-list');if(!el)return;
+  const open=currentB2bOpvolgingen.filter(op=>!op.gedaan).sort((a,b)=>{
+    const dc=a.datum.localeCompare(b.datum);if(dc!==0)return dc;
+    if(a.uur&&!b.uur)return -1;if(!a.uur&&b.uur)return 1;
+    return(a.uur||'').localeCompare(b.uur||'');
+  });
+  if(!open.length){el.innerHTML='<div style="font-size:12px;color:var(--tx3);padding:4px 0">Geen openstaande opvolgingen.</div>';return;}
+  const t=today();
+  const MK=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  el.innerHTML=open.map(op=>{
+    const origIdx=currentB2bOpvolgingen.indexOf(op);
+    const verleden=op.datum<t,isVandaag=op.datum===t;
+    const kleur=verleden?'#a32d2d':isVandaag?'#854f0b':'var(--tx2)';
+    const bg=verleden?'rgba(163,45,45,.06)':isVandaag?'rgba(133,79,11,.06)':'var(--bg2)';
+    return`<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border-radius:var(--r);background:${bg};margin-bottom:5px">
+      <div style="width:36px;text-align:center;flex-shrink:0">
+        <div style="font-size:10px;font-weight:700;color:${kleur}">${op.datum.slice(8)}</div>
+        <div style="font-size:9px;color:var(--tx3)">${MK[parseInt(op.datum.slice(5,7))-1]}</div>
+        ${op.uur?`<div style="font-size:10px;color:var(--tx3)">${op.uur}</div>`:''}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600">${op.tekst}</div>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="btn sm" style="color:#639922;border-color:rgba(99,153,34,.3)" title="Afvinken" onclick="b2bAfvinkOpvolging(${origIdx})"><i class="ti ti-check"></i></button>
+        <button class="btn sm danger" onclick="b2bDeleteOpvolging(${origIdx})"><i class="ti ti-trash"></i></button>
+      </div>
     </div>`;
   }).join('');
 }
-function tlAddActie(){
-  const tekst=document.getElementById('tl-actie').value.trim();
-  const datum=document.getElementById('tl-datum').value||today();
+
+function b2bAddOpvolging(){
+  const f=document.getElementById('b2b-opvolging-form');
+  f.style.display='block';
+  document.getElementById('b2bop-datum').value=today();
+  document.getElementById('b2bop-uur').value='';
+  document.getElementById('b2bop-tekst').value='';
+  document.getElementById('b2bop-tekst').focus();
+}
+
+function b2bSaveOpvolging(){
+  const datum=document.getElementById('b2bop-datum').value;
+  const tekst=document.getElementById('b2bop-tekst').value.trim();
+  if(!datum||!tekst){showToast('Vul datum en omschrijving in.');return;}
+  currentB2bOpvolgingen.push({datum,uur:document.getElementById('b2bop-uur').value,tekst,gedaan:false});
+  document.getElementById('b2b-opvolging-form').style.display='none';
+  b2bRenderOpvolgingen();
+  showToast('Opvolging toegevoegd.');
+}
+
+function b2bAfvinkOpvolging(idx){
+  // Toon de afvink popup (hergebruik b2c systeem maar sla op in currentB2bOpvolgingen)
+  window._b2bAfvinkIdx=idx;
+  const op=currentB2bOpvolgingen[idx];
+  const omEl=document.getElementById('b2c-afvink-omschrijving');
+  if(omEl)omEl.textContent=`"${op.tekst}" — ${op.datum}${op.uur?' om '+op.uur:''}`;
+  document.getElementById('b2c-afvink-opmerking').value='';
+  document.querySelectorAll('#b2c-afvink-quick .btn').forEach(b=>b.classList.remove('primary'));
+  // Tijdelijk de bevestig functie overnemen
+  window._b2bAfvinkActive=true;
+  document.getElementById('b2c-afvink-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('b2c-afvink-opmerking').focus(),100);
+}
+
+function b2bDeleteOpvolging(idx){
+  if(!confirm('Opvolging verwijderen?'))return;
+  currentB2bOpvolgingen.splice(idx,1);
+  b2bRenderOpvolgingen();
+  showToast('Opvolging verwijderd.');
+}
+
+// Override b2cBevestigAfvink to handle B2B too
+const _origB2cBevestigAfvink=window.b2cBevestigAfvink;
+function b2cBevestigAfvink(){
+  if(window._b2bAfvinkActive){
+    window._b2bAfvinkActive=false;
+    const opmerking=document.getElementById('b2c-afvink-opmerking').value.trim();
+    // Dashboard afvink mode
+    if(window._b2bDashAfvink){
+      const {p,oidx}=window._b2bDashAfvink;
+      window._b2bDashAfvink=null;
+      const op=p.opvolgingen[oidx];
+      if(op){
+        op.gedaan=true;op.opmerking=opmerking;
+        p.tijdlijn=p.tijdlijn||[];
+        p.tijdlijn.push({datum:today(),tekst:`✓ Opvolging gedaan: ${op.tekst}${opmerking?' — '+opmerking:''}`,tijdstip:nowTijdstip(),gebruiker:currentUser?.user_metadata?.naam||''});
+        sbSaveProject(p).catch(()=>{});
+      }
+      b2cSluitAfvink();
+      renderB2bDashOpvolgingen();
+      showToast('Opvolging afgevinkt ✓');
+      return;
+    }
+    // Modal afvink mode
+    const idx=window._b2bAfvinkIdx;
+    const op=currentB2bOpvolgingen[idx];
+    if(!op){b2cSluitAfvink();return;}
+    op.gedaan=true;op.opmerking=opmerking;
+    currentTijdlijn=currentTijdlijn||[];
+    currentTijdlijn.push({datum:today(),tekst:`✓ Opvolging gedaan: ${op.tekst}${opmerking?' — '+opmerking:''}`,tijdstip:nowTijdstip(),gebruiker:currentUser?.user_metadata?.naam||''});
+    renderTijdlijn();
+    b2cSluitAfvink();
+    b2bRenderOpvolgingen();
+    showToast('Opvolging afgevinkt ✓');
+    return;
+  }
+  // Originele B2C flow
+  const l=b2cLeads.find(x=>x.id===b2cAfvinkLeadId);
+  if(!l||!l.opvolgingen){b2cSluitAfvink();return;}
+  const op=l.opvolgingen[b2cAfvinkOpIdx];
+  const opmerking=document.getElementById('b2c-afvink-opmerking').value.trim();
+  op.gedaan=true;op.opmerking=opmerking;
+  l.acties=l.acties||[];
+  l.acties.push(logEntry(`✓ Opvolging gedaan: ${op.tekst}${opmerking?' — '+opmerking:''}`));
+  sbSaveB2cLead(l);
+  b2cSluitAfvink();
+  const listEl=document.getElementById('b2c-opvolging-list');
+  if(listEl)listEl.innerHTML=b2cRenderOpvolgingen(l);
+  const tl=document.querySelector('.b2c-tl');
+  if(tl)tl.innerHTML=(l.acties||[]).slice().reverse().map(a=>`<div class="b2c-tl-item"><span class="b2c-tl-date">${a.datum}</span><span class="b2c-tl-text">${a.tekst}</span></div>`).join('');
+  b2cRenderDashOpvolgingen();
+  showToast('Opvolging afgevinkt ✓');
+}
+
+function tlLogActie(){
+  const inp=document.getElementById('tl-actie-log');
+  const tekst=inp?inp.value.trim():'';
   if(!tekst){showToast('Vul een actie in.');return;}
-  currentTijdlijn.push({datum,tekst});
-  document.getElementById('tl-actie').value='';
-  document.getElementById('tl-datum').value=today();
+  currentTijdlijn.push(logEntry(tekst));
+  if(inp)inp.value='';
   renderTijdlijn();
 }
-function tlDeleteActie(idx){currentTijdlijn.splice(idx,1);renderTijdlijn();}
+function tlAddActie(){
+  const inp=document.getElementById('tl-actie-log');
+  const tekst=inp?inp.value.trim():'';
+  if(!tekst){showToast('Vul een actie in.');return;}
+  currentTijdlijn.push(logEntry(tekst));
+  if(inp)inp.value='';
+  renderTijdlijn();
+}
+function tlDeleteActie(idx){
+  // idx is the index in the original array
+  currentTijdlijn.splice(idx,1);renderTijdlijn();
+}
 function tlChangeDatum(idx,val){if(currentTijdlijn[idx])currentTijdlijn[idx].datum=val;renderTijdlijn();}
 
 
